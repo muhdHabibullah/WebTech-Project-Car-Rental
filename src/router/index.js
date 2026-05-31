@@ -42,13 +42,18 @@ const routes = [
       },
       {
         path: 'feedback',
-        name: 'SubmitFeedback',
-        component: () => import('../views/customer/SubmitFeedbackView.vue')
+        name: 'Feedback',
+        component: () => import('../views/customer/FeedbackView.vue')
       },
       {
         path: 'feedback-history',
         name: 'FeedbackHistory',
         component: () => import('../views/customer/FeedbackHistoryView.vue')
+      },
+      {
+        path: 'bookings',
+        name: 'BookingManagement',
+        component: () => import('../views/customer/BookingManagementView.vue')
       }
     ]
   },
@@ -77,6 +82,11 @@ const routes = [
         path: 'analytics',
         name: 'FeedbackAnalytics',
         component: () => import('../views/admin/FeedbackAnalyticsView.vue')
+      },
+      {
+        path: 'rentals',
+        name: 'RentalProcessing',
+        component: () => import('../views/admin/RentalProcessingView.vue')
       }
     ]
   },
