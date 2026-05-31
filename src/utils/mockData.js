@@ -146,3 +146,115 @@ export const ratingBreakdown = computed(() => {
   });
   return breakdown;
 });
+
+// Mock data for Booking Management and Rental Processing
+const customersData = [
+  { id: 1, name: 'John Doe', email: 'john@example.com', phone: '555-0101' },
+  { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '555-0102' },
+  { id: 3, name: 'Michael Johnson', email: 'michael@example.com', phone: '555-0103' },
+  { id: 4, name: 'Emily Davis', email: 'emily@example.com', phone: '555-0104' },
+  { id: 5, name: 'Robert Wilson', email: 'robert@example.com', phone: '555-0105' }
+];
+
+const carsData = [
+  { id: 1, brand: 'Toyota', model: 'Corolla', pricePerDay: 50, status: 'available' },
+  { id: 2, brand: 'Honda', model: 'Civic', pricePerDay: 55, status: 'available' },
+  { id: 3, brand: 'BMW', model: '3 Series', pricePerDay: 100, status: 'available' },
+  { id: 4, brand: 'Tesla', model: 'Model 3', pricePerDay: 150, status: 'available' },
+  { id: 5, brand: 'Ford', model: 'Explorer', pricePerDay: 80, status: 'unavailable' },
+  { id: 6, brand: 'Audi', model: 'A4', pricePerDay: 95, status: 'available' },
+  { id: 7, brand: 'Mercedes', model: 'C-Class', pricePerDay: 120, status: 'available' }
+];
+
+const bookingsData = [
+  {
+    id: 1,
+    customerId: 1,
+    customerName: 'John Doe',
+    carId: 1,
+    carInfo: 'Toyota Corolla',
+    startDate: '2026-06-01',
+    endDate: '2026-06-03',
+    totalPrice: 150,
+    status: 'pending'
+  },
+  {
+    id: 2,
+    customerId: 2,
+    customerName: 'Jane Smith',
+    carId: 3,
+    carInfo: 'BMW 3 Series',
+    startDate: '2026-05-31',
+    endDate: '2026-06-05',
+    totalPrice: 600,
+    status: 'confirmed'
+  },
+  {
+    id: 3,
+    customerId: 3,
+    customerName: 'Michael Johnson',
+    carId: 4,
+    carInfo: 'Tesla Model 3',
+    startDate: '2026-06-02',
+    endDate: '2026-06-04',
+    totalPrice: 450,
+    status: 'confirmed'
+  },
+  {
+    id: 4,
+    customerId: 4,
+    customerName: 'Emily Davis',
+    carId: 2,
+    carInfo: 'Honda Civic',
+    startDate: '2026-06-05',
+    endDate: '2026-06-08',
+    totalPrice: 220,
+    status: 'cancelled'
+  }
+];
+
+const rentalsData = [
+  {
+    id: 1,
+    bookingId: 1,
+    customerName: 'John Doe',
+    carInfo: 'Toyota Corolla',
+    startDate: '2026-06-01',
+    endDate: '2026-06-03',
+    status: 'booked'
+  },
+  {
+    id: 2,
+    bookingId: 2,
+    customerName: 'Jane Smith',
+    carInfo: 'BMW 3 Series',
+    startDate: '2026-05-31',
+    endDate: '2026-06-05',
+    status: 'ongoing'
+  },
+  {
+    id: 3,
+    bookingId: 3,
+    customerName: 'Michael Johnson',
+    carInfo: 'Tesla Model 3',
+    startDate: '2026-06-02',
+    endDate: '2026-06-04',
+    status: 'completed'
+  },
+  {
+    id: 4,
+    bookingId: 4,
+    customerName: 'Robert Wilson',
+    carInfo: 'Audi A4',
+    startDate: '2026-05-25',
+    endDate: '2026-05-28',
+    status: 'completed'
+  }
+];
+
+export const mockData = {
+  customers: customersData,
+  cars: carsData,
+  bookings: bookingsData,
+  rentals: rentalsData
+};

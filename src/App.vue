@@ -22,6 +22,9 @@
           <router-link to="/customer/payments" class="nav-link">
             💵 My Payments
           </router-link>
+          <router-link to="/customer/bookings" class="nav-link">
+            📅 Manage Bookings
+          </router-link>
           <router-link to="/customer/feedback" class="nav-link">
             ✍ Submit Feedback
           </router-link>
@@ -69,6 +72,9 @@
         <nav class="admin-nav-links">
           <router-link to="/admin/clearance" class="admin-nav-link">
             ⚙ Payment Clearance Log
+          </router-link>
+          <router-link to="/admin/rentals" class="admin-nav-link">
+            🚗 Rental Processing
           </router-link>
           <router-link to="/admin/analytics" class="admin-nav-link">
             📈 Feedback Analytics
