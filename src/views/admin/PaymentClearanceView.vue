@@ -123,13 +123,30 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { payments, clearPayment, flagPayment } from '../../utils/mockData';
+import { ref, computed, onMounted } from 'vue';
+import api from '../../utils/axios';
 
+const payments = ref([]);
 const searchQuery = ref('');
 const statusFilter = ref('');
 const processingId = ref(null);
 const toasts = ref([]);
+const isLoading = ref(true);
+
+// Fetch payments from API
+const fetchPayments = async () => {
+  try {
+    isLoading.value = true;
+    console.log('[PAYMENT CLEARANCE] Fetching payments from API...');
+    const res = await api.get('/payments');
+    payments.value = res.data || [];
+    console.log('[PAYMENT CLEARANCE] Payments loaded:', payments.value.length);
+  } catch (error) {
+    console.error('[PAYMENT CLEARANCE] Error fetching payments:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
 
 // Totals computations
 const pendingCount = computed(() => payments.value.filter(p => p.status === 'pending').length);
@@ -155,9 +172,12 @@ const filteredPayments = computed(() => {
 const handleApprove = async (id) => {
   processingId.value = id;
   try {
-    await clearPayment(id);
+    await api.put(`/payments/${id}`, { status: 'paid' });
+    const payment = payments.value.find(p => p.id === id);
+    if (payment) payment.status = 'paid';
     addToast(`Transaction ${id} successfully cleared and approved!`, 'success');
   } catch (err) {
+    console.error('Error approving payment:', err);
     addToast('Failed to clear transaction.', 'danger');
   } finally {
     processingId.value = null;
@@ -168,9 +188,12 @@ const handleApprove = async (id) => {
 const handleFlag = async (id) => {
   processingId.value = id;
   try {
-    await flagPayment(id);
+    await api.put(`/payments/${id}`, { status: 'flagged' });
+    const payment = payments.value.find(p => p.id === id);
+    if (payment) payment.status = 'flagged';
     addToast(`Transaction ${id} flagged as disputed. Payment locked.`, 'danger');
   } catch (err) {
+    console.error('Error flagging payment:', err);
     addToast('Failed to flag transaction.', 'danger');
   } finally {
     processingId.value = null;
@@ -184,4 +207,8 @@ const addToast = (text, type = 'success') => {
     toasts.value = toasts.value.filter(t => t.id !== id);
   }, 4000);
 };
+
+onMounted(() => {
+  fetchPayments();
+});
 </script>

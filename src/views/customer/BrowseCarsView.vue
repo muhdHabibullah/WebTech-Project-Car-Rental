@@ -109,10 +109,11 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { fetchCars } from '../../utils/mockData';
+import api from '../../utils/axios';
 
 const router = useRouter();
 const carList = ref([]);
+const allCars = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 
@@ -128,23 +129,55 @@ let debounceTimer = null;
 const debouncedSearch = () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    loadCars();
+    filterCars();
   }, 350);
 };
 
+// Apply filters to the loaded cars
+const filterCars = () => {
+  let result = [...allCars.value];
+
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase();
+    result = result.filter(c =>
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.brand && c.brand.toLowerCase().includes(q)) ||
+      (c.category && c.category.toLowerCase().includes(q))
+    );
+  }
+  if (filters.category && filters.category !== 'all') {
+    result = result.filter(c => c.category === filters.category);
+  }
+  if (filters.transmission && filters.transmission !== 'all') {
+    result = result.filter(c => c.transmission === filters.transmission);
+  }
+  if (filters.availableOnly) {
+    result = result.filter(c => c.available === true);
+  }
+  if (filters.sort === 'price-asc') {
+    result.sort((a, b) => (a.pricePerDay || 0) - (b.pricePerDay || 0));
+  } else if (filters.sort === 'price-desc') {
+    result.sort((a, b) => (b.pricePerDay || 0) - (a.pricePerDay || 0));
+  } else if (filters.sort === 'name') {
+    result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  } else if (filters.sort === 'year') {
+    result.sort((a, b) => (b.year || 0) - (a.year || 0));
+  }
+
+  carList.value = result;
+};
+
+// Fetch cars from API
 const loadCars = async () => {
   isLoading.value = true;
   try {
-    const result = await fetchCars({
-      search: searchQuery.value,
-      category: filters.category,
-      transmission: filters.transmission,
-      sort: filters.sort,
-      availableOnly: filters.availableOnly
-    });
-    carList.value = result;
+    console.log('[BROWSE CARS] Fetching cars from API...');
+    const res = await api.get('/cars');
+    allCars.value = res.data || [];
+    console.log('[BROWSE CARS] Cars loaded:', allCars.value.length);
+    filterCars();
   } catch (err) {
-    console.error('Failed to load cars:', err);
+    console.error('[BROWSE CARS] Failed to load cars:', err);
   } finally {
     isLoading.value = false;
   }
@@ -156,7 +189,7 @@ const resetFilters = () => {
   filters.transmission = 'all';
   filters.sort = '';
   filters.availableOnly = true;
-  loadCars();
+  filterCars();
 };
 
 const goToDetail = (carId) => {

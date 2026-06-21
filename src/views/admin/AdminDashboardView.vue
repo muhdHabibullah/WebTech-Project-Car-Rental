@@ -225,21 +225,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import {
-  totalRevenue,
-  pendingClearancesCount,
-  totalBookingsCount,
-  totalCarsCount,
-  availableCarsCount,
-  averageRating,
-  payments,
-  categoryBreakdown,
-  mockData
-} from '../../utils/mockData';
+import { ref, computed, onMounted } from 'vue';
+import api from '../../utils/axios';
 
+
+// Real data from API
+const bookings = ref([]);
+const rentals = ref([]);
+const payments = ref([]);
+const cars = ref([]);
+const feedback = ref([]);
+const isLoading = ref(true);
+const apiError = ref(false);
+
+// Computed properties using real data
 const recentBookings = computed(() =>
-  [...mockData.bookings].reverse().slice(0, 5)
+  [...bookings.value].reverse().slice(0, 5)
 );
 
 const pendingPayments = computed(() =>
@@ -247,7 +248,31 @@ const pendingPayments = computed(() =>
 );
 
 const ongoingRentalsCount = computed(() =>
-  mockData.rentals.filter(r => r.status === 'ongoing' || r.status === 'booked').length
+  rentals.value.filter(r => r.status === 'ongoing' || r.status === 'booked').length
+);
+
+const totalRevenue = computed(() => {
+  return payments.value
+    .filter(p => p.status === 'paid')
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+});
+
+const totalBookingsCount = computed(() => bookings.value.length);
+
+const totalCarsCount = computed(() => cars.value.length);
+
+const availableCarsCount = computed(() =>
+  cars.value.filter(c => c.available === true).length
+);
+
+const averageRating = computed(() => {
+  if (feedback.value.length === 0) return 0;
+  const sum = feedback.value.reduce((acc, f) => acc + (f.stars || 0), 0);
+  return (sum / feedback.value.length).toFixed(1);
+});
+
+const pendingClearancesCount = computed(() =>
+  payments.value.filter(p => p.status === 'pending').length
 );
 
 const availabilityPct = computed(() =>
@@ -257,6 +282,81 @@ const availabilityPct = computed(() =>
 const ongoingPct = computed(() =>
   totalCarsCount.value === 0 ? 0 : (ongoingRentalsCount.value / totalCarsCount.value) * 100
 );
+
+// Fetch data from API
+const fetchDashboardData = async () => {
+  try {
+    isLoading.value = true;
+    apiError.value = false;
+    console.log('[ADMIN DASHBOARD] Fetching real data from API...');
+
+    // Fetch all required data
+    const [
+      bookingsRes,
+      rentalsRes,
+      paymentsRes,
+      carsRes,
+      feedbackRes
+    ] = await Promise.allSettled([
+      api.get('/bookings'),
+      api.get('/admin/rentals'),
+      api.get('/payments'),
+      api.get('/cars'),
+      api.get('/feedback')
+    ]);
+
+    // Handle results
+    if (bookingsRes.status === 'fulfilled') {
+      bookings.value = bookingsRes.value.data || [];
+      console.log('[ADMIN DASHBOARD] Bookings loaded:', bookings.value.length);
+    }
+
+    if (rentalsRes.status === 'fulfilled') {
+      rentals.value = rentalsRes.value.data || [];
+      console.log('[ADMIN DASHBOARD] Rentals loaded:', rentals.value.length);
+    }
+
+    if (paymentsRes.status === 'fulfilled') {
+      payments.value = paymentsRes.value.data || [];
+      console.log('[ADMIN DASHBOARD] Payments loaded:', payments.value.length);
+    }
+
+    if (carsRes.status === 'fulfilled') {
+      cars.value = carsRes.value.data || [];
+      console.log('[ADMIN DASHBOARD] Cars loaded:', cars.value.length);
+    }
+
+    if (feedbackRes.status === 'fulfilled') {
+      feedback.value = feedbackRes.value.data || [];
+      console.log('[ADMIN DASHBOARD] Feedback loaded:', feedback.value.length);
+    }
+
+    // Check if any requests failed
+    const failed = [
+      bookingsRes,
+      rentalsRes,
+      paymentsRes,
+      carsRes,
+      feedbackRes
+    ].filter(r => r.status === 'rejected');
+
+    if (failed.length > 0) {
+      console.warn('[ADMIN DASHBOARD] Some API calls failed:', failed);
+      apiError.value = true;
+    }
+
+  } catch (error) {
+    console.error('[ADMIN DASHBOARD] Error fetching data:', error);
+    apiError.value = true;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Load data on component mount
+onMounted(() => {
+  fetchDashboardData();
+});
 </script>
 
 <style scoped>

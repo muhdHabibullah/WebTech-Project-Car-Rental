@@ -161,16 +161,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { mockData } from '@/utils/mockData';
+import { ref, computed, onMounted } from 'vue';
+import api from '@/utils/axios';
 
-const bookings = ref(mockData.bookings);
-const customers = ref(mockData.customers);
-const cars = ref(mockData.cars);
+const bookings = ref([]);
+const cars = ref([]);
+const isLoading = ref(true);
 
 const showForm = ref(false);
 const formData = ref({
-  customerId: 0,
   carId: 0,
   startDate: '',
   endDate: '',
@@ -178,9 +177,28 @@ const formData = ref({
   status: 'pending',
 });
 
+// Fetch bookings and cars from API
+const fetchData = async () => {
+  try {
+    isLoading.value = true;
+    console.log('[BOOKING MANAGEMENT] Fetching data from API...');
+    const [bookingsRes, carsRes] = await Promise.all([
+      api.get('/bookings'),
+      api.get('/cars')
+    ]);
+    bookings.value = bookingsRes.data || [];
+    cars.value = carsRes.data || [];
+    console.log('[BOOKING MANAGEMENT] Bookings:', bookings.value.length, 'Cars:', cars.value.length);
+  } catch (error) {
+    console.error('[BOOKING MANAGEMENT] Error fetching data:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // Filter only available cars
 const availableCars = computed(() => {
-  return cars.value.filter((car) => car.status === 'available');
+  return cars.value.filter((car) => car.available === true);
 });
 
 // Calculate price based on car and dates
@@ -190,7 +208,7 @@ const calculatePrice = (carId, startDate, endDate) => {
   const days = Math.ceil(
     (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)
   );
-  return days * car.pricePerDay;
+  return days * (car.pricePerDay || 0);
 };
 
 // Update total price when car or dates change
@@ -205,59 +223,72 @@ const updateTotalPrice = () => {
 };
 
 // Submit form to add booking
-const handleSubmit = () => {
-  if (formData.value.customerId === 0 || formData.value.carId === 0) {
-    alert('Please select a customer and car');
+const handleSubmit = async () => {
+  if (!formData.value.carId) {
+    alert('Please select a car');
     return;
   }
 
-  const customer = customers.value.find((c) => c.id === formData.value.customerId);
-  const car = cars.value.find((c) => c.id === formData.value.carId);
+  try {
+    const res = await api.post('/bookings', {
+      carId: formData.value.carId,
+      startDate: formData.value.startDate,
+      endDate: formData.value.endDate,
+      totalPrice: formData.value.totalPrice,
+      status: 'pending'
+    });
+    
+    bookings.value.push(res.data);
 
-  const newBooking = {
-    id: Math.max(...bookings.value.map((b) => b.id), 0) + 1,
-    customerId: formData.value.customerId,
-    customerName: customer.name,
-    carId: formData.value.carId,
-    carInfo: `${car.brand} ${car.model}`,
-    startDate: formData.value.startDate,
-    endDate: formData.value.endDate,
-    totalPrice: formData.value.totalPrice,
-    status: 'pending',
-  };
-
-  bookings.value.push(newBooking);
-
-  // Reset form
-  formData.value = {
-    customerId: 0,
-    carId: 0,
-    startDate: '',
-    endDate: '',
-    totalPrice: 0,
-    status: 'pending',
-  };
-  showForm.value = false;
-  alert('Booking created successfully!');
+    // Reset form
+    formData.value = {
+      carId: 0,
+      startDate: '',
+      endDate: '',
+      totalPrice: 0,
+      status: 'pending',
+    };
+    showForm.value = false;
+    alert('Booking created successfully!');
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    alert('Failed to create booking');
+  }
 };
 
 // Update booking status
-const updateBookingStatus = (id, status) => {
-  const booking = bookings.value.find((b) => b.id === id);
-  if (booking) {
-    booking.status = status;
-    alert(`Booking ${status}!`);
+const updateBookingStatus = async (id, status) => {
+  try {
+    await api.put(`/bookings/${id}`, { status });
+    const booking = bookings.value.find((b) => b.id === id);
+    if (booking) {
+      booking.status = status;
+      alert(`Booking ${status}!`);
+    }
+  } catch (error) {
+    console.error('Error updating booking:', error);
+    alert('Failed to update booking');
   }
 };
 
 // Cancel booking
-const cancelBooking = (id) => {
+const cancelBooking = async (id) => {
   const booking = bookings.value.find((b) => b.id === id);
   if (booking && confirm('Are you sure you want to cancel this booking?')) {
-    booking.status = 'cancelled';
-    alert('Booking cancelled!');
+    try {
+      await api.delete(`/bookings/${id}`);
+      bookings.value = bookings.value.filter(b => b.id !== id);
+      alert('Booking cancelled!');
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      alert('Failed to cancel booking');
+    }
   }
 };
+
+onMounted(() => {
+  fetchData();
+});
 </script>
 
 <style scoped>

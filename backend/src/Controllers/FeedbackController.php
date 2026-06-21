@@ -17,7 +17,7 @@ class FeedbackController {
 
     public function getAll(Request $request, Response $response): Response {
         try {
-            $query = "SELECT f.*, c.name as customer_name, car.brand as car_brand, car.model as car_model
+            $query = "SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
                       FROM feedback f
                       JOIN customers c ON f.customer_id = c.id
                       JOIN bookings b ON f.booking_id = b.id
@@ -90,7 +90,7 @@ class FeedbackController {
             ]);
 
             // Fetch created feedback for response
-            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.model as car_model
+            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
                                            FROM feedback f
                                            JOIN customers c ON f.customer_id = c.id
                                            JOIN bookings b ON f.booking_id = b.id
@@ -157,7 +157,7 @@ class FeedbackController {
             $stmt->execute($binds);
 
             // Fetch refreshed item
-            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.model as car_model
+            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
                                            FROM feedback f
                                            JOIN customers c ON f.customer_id = c.id
                                            JOIN bookings b ON f.booking_id = b.id
