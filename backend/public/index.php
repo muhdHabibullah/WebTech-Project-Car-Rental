@@ -19,8 +19,9 @@ $app = AppFactory::create();
 // Parse JSON body
 $app->addBodyParsingMiddleware();
 
-// Add Error Middleware
-$app->addErrorMiddleware(true, true, true);
+// Add Error Middleware (disable detailed error display in production for security - Lab 11 Task C3)
+$isDev = (getenv('APP_ENV') ?: 'development') !== 'production';
+$app->addErrorMiddleware($isDev, true, true);
 
 // Add CORS Middleware (must be added last so it runs first)
 $app->add(new CorsMiddleware());

@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Back Link -->
-    <router-link to="/customer/cars" class="back-link">← Back to Fleet</router-link>
+    <router-link to="/cars" class="back-link">← Back to Fleet</router-link>
 
     <!-- Loading State -->
     <div v-if="isLoading" style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
@@ -13,7 +13,7 @@
       <div class="empty-state-icon">🚫</div>
       <h3 class="empty-state-title">Car Not Found</h3>
       <p class="empty-state-text">The vehicle you're looking for doesn't exist or has been removed.</p>
-      <router-link to="/customer/cars" class="btn btn-primary" style="margin-top: 1rem;">
+      <router-link to="/cars" class="btn btn-primary" style="margin-top: 1rem;">
         Browse Available Cars
       </router-link>
     </div>
@@ -113,9 +113,42 @@
                 Booking ID: <strong>{{ confirmedBookingId }}</strong>
               </p>
               <div style="display: flex; gap: 0.75rem; justify-content: center;">
-                <router-link to="/customer/cars" class="btn btn-outline">Browse More Cars</router-link>
+                <router-link to="/cars" class="btn btn-outline">Browse More Cars</router-link>
                 <button @click="resetForm" class="btn btn-primary">Book Again</button>
               </div>
+            </div>
+          </div>
+
+          <!-- Guest State -->
+          <div v-else-if="!user">
+            <div class="booking-card-title">📋 Reserve This Vehicle</div>
+            <div style="text-align: center; padding: 2rem 1.5rem;">
+              <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">🔒</span>
+              <h4 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--text-main);">Authentication Required</h4>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                You must sign in as a customer to reserve this vehicle and submit billing details.
+              </p>
+              <button @click="redirectToLogin" class="btn btn-primary" style="width: 100%;">
+                Sign In to Book
+              </button>
+              <router-link :to="{ name: 'Signup', query: { redirect: route.fullPath } }" class="btn btn-outline" style="width: 100%; margin-top: 0.75rem; text-align: center; display: block; font-weight: 500;">
+                Register Account
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Admin Logged In State -->
+          <div v-else-if="user.role === 'admin'">
+            <div class="booking-card-title">📋 Reserve This Vehicle</div>
+            <div style="text-align: center; padding: 2rem 1.5rem;">
+              <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">⚙️</span>
+              <h4 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--text-main);">Admin Workspace</h4>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                You are logged in with an administrative profile. Admins cannot create customer rental bookings.
+              </p>
+              <router-link to="/admin/cars" class="btn btn-primary" style="width: 100%; text-align: center; display: block;">
+                Manage Car Inventory
+              </router-link>
             </div>
           </div>
 
@@ -258,16 +291,24 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { fetchCarById, createBooking } from '../../utils/mockData';
+import { currentUser } from '../../utils/session';
 
 const route = useRoute();
+const router = useRouter();
 const car = ref(null);
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const hasError = ref(false);
 const bookingSuccess = ref(false);
 const confirmedBookingId = ref('');
+
+const user = computed(() => currentUser.value);
+
+const redirectToLogin = () => {
+  router.push({ name: 'Login', query: { redirect: route.fullPath } });
+};
 
 const todayStr = new Date().toISOString().split('T')[0];
 

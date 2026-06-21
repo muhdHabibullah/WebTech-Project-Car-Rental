@@ -93,10 +93,11 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { loginSim } from '../utils/session';
 
 const router = useRouter();
+const route = useRoute();
 const isLoading = ref(false);
 const hasError = ref(false);
 
@@ -145,7 +146,12 @@ const handleLogin = async () => {
     if (user.role === 'admin') {
       router.push({ name: 'AdminDashboard' });
     } else {
-      router.push({ name: 'BrowseCars' });
+      const redirectTo = route.query.redirect;
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.push({ name: 'BrowseCars' });
+      }
     }
   } catch (err) {
     triggerErrorEffect();

@@ -5,7 +5,8 @@ import { currentUser } from '../utils/session';
 const routes = [
   {
     path: '/',
-    redirect: '/login'
+    name: 'Home',
+    component: () => import('../views/HomeView.vue')
   },
   {
     path: '/login',
@@ -19,22 +20,23 @@ const routes = [
     component: () => import('../views/SignupView.vue'),
     meta: { guestOnly: true }
   },
-  // Customer Views
+  // Public Fleet Views (accessible to both guests and logged-in users)
+  {
+    path: '/cars',
+    name: 'BrowseCars',
+    component: () => import('../views/customer/BrowseCarsView.vue')
+  },
+  {
+    path: '/cars/:id',
+    name: 'CarDetail',
+    component: () => import('../views/customer/CarDetailView.vue')
+  },
+  // Customer Views (authenticated only)
   {
     path: '/customer',
-    redirect: '/customer/cars',
+    redirect: '/cars',
     meta: { requiresAuth: true, role: 'customer' },
     children: [
-      {
-        path: 'cars',
-        name: 'BrowseCars',
-        component: () => import('../views/customer/BrowseCarsView.vue')
-      },
-      {
-        path: 'cars/:id',
-        name: 'CarDetail',
-        component: () => import('../views/customer/CarDetailView.vue')
-      },
       {
         path: 'payments',
         name: 'MyPayments',
@@ -102,7 +104,7 @@ const routes = [
   // Catch All Route
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login'
+    redirect: '/'
   }
 ];
 
@@ -120,8 +122,8 @@ router.beforeEach((to, from, next) => {
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!user) {
-      // User is not logged in, redirect to login
-      next({ name: 'Login' });
+      // User is not logged in, redirect to login with query param
+      next({ name: 'Login', query: { redirect: to.fullPath } });
     } else {
       // User is logged in, check role permissions
       const requiredRole = to.matched.find(record => record.meta.role)?.meta.role;

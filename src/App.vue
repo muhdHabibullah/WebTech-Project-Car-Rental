@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
-    <!-- View Case A: User Not Logged In (Show pure Login/Signup Pages) -->
-    <div v-if="!user" class="auth-only-container">
+    <!-- View Case A: Guest on Login/Signup Pages (Show pure Login/Signup Boxes) -->
+    <div v-if="!user && isAuthPage" class="auth-only-container">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -9,17 +9,47 @@
       </router-view>
     </div>
 
-    <!-- View Case B: Logged In as Customer (Sticky Top Navbar Layout) -->
-    <div v-else-if="user.role === 'customer'">
-      <!-- Customer Sticky Navbar -->
+    <!-- View Case B: Guest on Public Pages (Home, Browse Fleet, Car Details) -->
+    <div v-else-if="!user">
+      <!-- Guest Top Navbar -->
       <nav class="customer-navbar">
-        <router-link to="/customer/cars" class="logo-container">
+        <router-link to="/" class="logo-container">
           <div class="logo-icon">🚗</div>
-          <span>BlueDrive</span>
+          <span>DriveEase</span>
         </router-link>
 
         <div class="customer-nav-links">
-          <router-link to="/customer/cars" class="nav-link">
+          <router-link to="/" class="nav-link">🏠 Home</router-link>
+          <router-link to="/cars" class="nav-link">🚘 Browse Fleet</router-link>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <router-link to="/login" class="btn btn-outline btn-sm" style="padding: 0.4rem 1rem;">Sign In</router-link>
+          <router-link to="/signup" class="btn btn-primary btn-sm" style="padding: 0.4rem 1rem;">Register</router-link>
+        </div>
+      </nav>
+
+      <!-- Guest Viewport Main Content Wrapper -->
+      <main style="padding: 2rem; max-width: var(--max-width); margin: 0 auto; width: 100%;">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+    </div>
+
+    <!-- View Case C: Logged In as Customer (Sticky Top Navbar Layout) -->
+    <div v-else-if="user.role === 'customer'">
+      <!-- Customer Sticky Navbar -->
+      <nav class="customer-navbar">
+        <router-link to="/cars" class="logo-container">
+          <div class="logo-icon">🚗</div>
+          <span>DriveEase</span>
+        </router-link>
+
+        <div class="customer-nav-links">
+          <router-link to="/cars" class="nav-link">
             🚘 Browse Cars
           </router-link>
           <router-link to="/customer/payments" class="nav-link">
@@ -60,14 +90,14 @@
       </main>
     </div>
 
-    <!-- View Case C: Logged In as Admin (Sleek Sidebar & Main Dashboard Area) -->
+    <!-- View Case D: Logged In as Admin (Sleek Sidebar & Main Dashboard Area) -->
     <div v-else-if="user.role === 'admin'" class="admin-layout">
       <!-- Admin Left Sidebar -->
       <aside class="admin-sidebar">
         <div class="admin-sidebar-header">
           <div class="logo-container" style="font-size: 1.35rem;">
             <div class="logo-icon" style="width: 2rem; height: 2rem; font-size: 0.95rem;">🚗</div>
-            <span>BlueDrive</span>
+            <span>DriveEase</span>
           </div>
           <span class="admin-badge">System Admin</span>
         </div>
@@ -127,11 +157,14 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { currentUser, logoutSim } from './utils/session';
 
 const router = useRouter();
+const route = useRoute();
+
 const user = computed(() => currentUser.value);
+const isAuthPage = computed(() => route.name === 'Login' || route.name === 'Signup');
 
 const handleLogout = () => {
   logoutSim();
