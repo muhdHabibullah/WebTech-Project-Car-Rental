@@ -227,17 +227,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../../utils/axios';
-import {
-  totalRevenue as mockTotalRevenue,
-  pendingClearancesCount as mockPendingClearances,
-  totalBookingsCount as mockTotalBookings,
-  totalCarsCount as mockTotalCars,
-  availableCarsCount as mockAvailableCars,
-  averageRating as mockAverageRating,
-  payments as mockPayments,
-  categoryBreakdown as mockCategoryBreakdown,
-  mockData
-} from '../../utils/mockData';
+
 
 // Real data from API
 const bookings = ref([]);
@@ -272,12 +262,12 @@ const totalBookingsCount = computed(() => bookings.value.length);
 const totalCarsCount = computed(() => cars.value.length);
 
 const availableCarsCount = computed(() =>
-  cars.value.filter(c => c.availability_status === 'available').length
+  cars.value.filter(c => c.available === true).length
 );
 
 const averageRating = computed(() => {
   if (feedback.value.length === 0) return 0;
-  const sum = feedback.value.reduce((acc, f) => acc + (f.rating || 0), 0);
+  const sum = feedback.value.reduce((acc, f) => acc + (f.stars || 0), 0);
   return (sum / feedback.value.length).toFixed(1);
 });
 

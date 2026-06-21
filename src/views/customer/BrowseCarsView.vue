@@ -152,12 +152,12 @@ const filterCars = () => {
     result = result.filter(c => c.transmission === filters.transmission);
   }
   if (filters.availableOnly) {
-    result = result.filter(c => c.availability_status === 'available');
+    result = result.filter(c => c.available === true);
   }
   if (filters.sort === 'price-asc') {
-    result.sort((a, b) => (a.price_per_day || 0) - (b.price_per_day || 0));
+    result.sort((a, b) => (a.pricePerDay || 0) - (b.pricePerDay || 0));
   } else if (filters.sort === 'price-desc') {
-    result.sort((a, b) => (b.price_per_day || 0) - (a.price_per_day || 0));
+    result.sort((a, b) => (b.pricePerDay || 0) - (a.pricePerDay || 0));
   } else if (filters.sort === 'name') {
     result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   } else if (filters.sort === 'year') {

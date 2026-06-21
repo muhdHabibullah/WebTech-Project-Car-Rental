@@ -117,10 +117,10 @@ class CarController {
         }
 
         try {
-            // Generate CAR-xxx format code dynamically based on inventory size
-            $countStmt = $this->db->query("SELECT COUNT(*) as total FROM cars");
-            $count = $countStmt->fetch(PDO::FETCH_ASSOC)['total'];
-            $newId = "CAR-" . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+            // Generate CAR-xxx format code dynamically based on highest existing ID
+            $countStmt = $this->db->query("SELECT MAX(CAST(SUBSTRING(id, 5) AS UNSIGNED)) as max_id FROM cars");
+            $maxId = $countStmt->fetch(PDO::FETCH_ASSOC)['max_id'] ?? 0;
+            $newId = "CAR-" . str_pad($maxId + 1, 3, '0', STR_PAD_LEFT);
 
             $stmt = $this->db->prepare("INSERT INTO cars (id, name, brand, category, year, price_per_day, seats, transmission, fuel_type, available, image_url, features, description) 
                                         VALUES (:id, :name, :brand, :category, :year, :price_per_day, :seats, :transmission, :fuel_type, 1, :image_url, :features, :description)");

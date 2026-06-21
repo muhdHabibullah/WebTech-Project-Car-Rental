@@ -20,7 +20,7 @@ class BookingController {
 
         try {
             $query = "SELECT b.*, c.name as customer_name, c.phone as customer_phone, 
-                             car.brand as car_brand, car.model as car_model
+                             car.brand as car_brand, car.name as car_model
                       FROM bookings b
                       JOIN customers c ON b.customer_id = c.id
                       JOIN cars car ON b.car_id = car.id";
@@ -53,7 +53,7 @@ class BookingController {
 
         try {
             $stmt = $this->db->prepare("SELECT b.*, c.name as customer_name, c.phone as customer_phone, 
-                                               car.brand as car_brand, car.model as car_model
+                                               car.brand as car_brand, car.name as car_model
                                         FROM bookings b
                                         JOIN customers c ON b.customer_id = c.id
                                         JOIN cars car ON b.car_id = car.id
@@ -163,7 +163,7 @@ class BookingController {
 
             // Fetch the created record for response
             $getStmt = $this->db->prepare("SELECT b.*, c.name as customer_name, c.phone as customer_phone, 
-                                                 car.brand as car_brand, car.model as car_model
+                                                 car.brand as car_brand, car.name as car_model
                                           FROM bookings b
                                           JOIN customers c ON b.customer_id = c.id
                                           JOIN cars car ON b.car_id = car.id

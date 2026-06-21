@@ -198,7 +198,7 @@ const fetchData = async () => {
 
 // Filter only available cars
 const availableCars = computed(() => {
-  return cars.value.filter((car) => car.availability_status === 'available');
+  return cars.value.filter((car) => car.available === true);
 });
 
 // Calculate price based on car and dates
@@ -208,7 +208,7 @@ const calculatePrice = (carId, startDate, endDate) => {
   const days = Math.ceil(
     (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)
   );
-  return days * (car.price_per_day || 0);
+  return days * (car.pricePerDay || 0);
 };
 
 // Update total price when car or dates change
@@ -231,10 +231,10 @@ const handleSubmit = async () => {
 
   try {
     const res = await api.post('/bookings', {
-      car_id: formData.value.carId,
-      start_date: formData.value.startDate,
-      end_date: formData.value.endDate,
-      total_price: formData.value.totalPrice,
+      carId: formData.value.carId,
+      startDate: formData.value.startDate,
+      endDate: formData.value.endDate,
+      totalPrice: formData.value.totalPrice,
       status: 'pending'
     });
     

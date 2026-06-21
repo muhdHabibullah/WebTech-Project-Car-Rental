@@ -448,20 +448,20 @@ const submitFeedbackForm = async () => {
   try {
     if (editingFeedbackId.value) {
       const payload = {
-        rating: form.stars,
+        stars: form.stars,
         comment: form.comment.trim()
       };
       await api.put(`/feedback/${editingFeedbackId.value}`, payload);
       const feedback = feedbacks.value.find(f => f.id === editingFeedbackId.value);
       if (feedback) {
-        feedback.rating = form.stars;
+        feedback.stars = form.stars;
         feedback.comment = form.comment.trim();
       }
       addToast('Your review has been updated successfully!', 'success');
       editingFeedbackId.value = null;
     } else {
       const payload = {
-        rating: form.stars,
+        stars: form.stars,
         comment: form.comment.trim()
       };
       const res = await api.post('/feedback', payload);

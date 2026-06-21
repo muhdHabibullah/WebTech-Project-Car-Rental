@@ -17,7 +17,7 @@ class RentalController {
 
     public function getAll(Request $request, Response $response): Response {
         try {
-            $query = "SELECT r.*, c.name as customer_name, car.brand as car_brand, car.model as car_model
+            $query = "SELECT r.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
                       FROM rentals r
                       JOIN bookings b ON r.booking_id = b.id
                       JOIN customers c ON b.customer_id = c.id
