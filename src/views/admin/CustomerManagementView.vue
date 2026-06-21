@@ -158,13 +158,15 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue';
-import { customers, addCustomer, updateCustomer, deleteCustomer } from '@/utils/mockData.js';
+import { ref, computed, reactive, onMounted } from 'vue';
+import api from '@/utils/axios';
 import { currentUser } from '@/utils/session.js';
 
+const customers = ref([]);
 const searchQuery = ref('');
 const toasts = ref([]);
 const isSubmitting = ref(false);
+const isLoading = ref(true);
 
 const showAddForm = ref(false);
 const addForm = reactive({ name: '', email: '', phone: '' });
@@ -174,10 +176,26 @@ const editForm = reactive({ name: '', email: '', phone: '' });
 
 const customerToDelete = ref(null);
 
+// Fetch customers from API
+const fetchCustomers = async () => {
+  try {
+    isLoading.value = true;
+    console.log('[CUSTOMER MANAGEMENT] Fetching customers from API...');
+    const res = await api.get('/admin/customers');
+    customers.value = res.data || [];
+    console.log('[CUSTOMER MANAGEMENT] Customers loaded:', customers.value.length);
+  } catch (error) {
+    console.error('[CUSTOMER MANAGEMENT] Error fetching customers:', error);
+    addToast('Failed to load customers', 'danger');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const totalCustomers = computed(() => customers.value.length);
 const newThisMonth = computed(() => {
   const currentMonth = new Date().toISOString().slice(0, 7);
-  return customers.value.filter(c => c.joinDate && c.joinDate.startsWith(currentMonth)).length;
+  return customers.value.filter(c => c.created_at && c.created_at.startsWith(currentMonth)).length;
 });
 
 const filteredCustomers = computed(() => {
@@ -209,10 +227,12 @@ const toggleAddForm = () => {
 const handleAddSubmit = async () => {
   isSubmitting.value = true;
   try {
-    await addCustomer({ ...addForm });
+    const res = await api.post('/admin/customers', { ...addForm });
+    customers.value.push(res.data);
     addToast('Customer added', 'success');
     showAddForm.value = false;
   } catch (error) {
+    console.error('Error adding customer:', error);
     addToast('Failed to add customer', 'danger');
   } finally {
     isSubmitting.value = false;
@@ -233,10 +253,17 @@ const cancelEdit = () => {
 const handleEditSubmit = async () => {
   isSubmitting.value = true;
   try {
-    await updateCustomer(editingId.value, { ...editForm });
+    await api.put(`/admin/customers/${editingId.value}`, { ...editForm });
+    const customer = customers.value.find(c => c.id === editingId.value);
+    if (customer) {
+      customer.name = editForm.name;
+      customer.email = editForm.email;
+      customer.phone = editForm.phone;
+    }
     addToast('Customer updated', 'success');
     editingId.value = null;
   } catch (error) {
+    console.error('Error updating customer:', error);
     addToast('Failed to update customer', 'danger');
   } finally {
     isSubmitting.value = false;
@@ -250,13 +277,19 @@ const confirmDelete = (c) => {
 const handleDelete = async () => {
   isSubmitting.value = true;
   try {
-    await deleteCustomer(customerToDelete.value.id);
+    await api.delete(`/admin/customers/${customerToDelete.value.id}`);
+    customers.value = customers.value.filter(c => c.id !== customerToDelete.value.id);
     addToast('Customer removed', 'danger');
     customerToDelete.value = null;
   } catch (error) {
+    console.error('Error deleting customer:', error);
     addToast('Failed to delete customer', 'danger');
   } finally {
     isSubmitting.value = false;
   }
 };
+
+onMounted(() => {
+  fetchCustomers();
+});
 </script>

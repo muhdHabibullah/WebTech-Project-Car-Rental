@@ -13,8 +13,10 @@ export const currentUser = ref(initialUser);
  */
 export const loginSim = async (email, password, role) => {
   try {
+    console.log('[LOGIN] Attempting login with:', { email, role, apiUrl: api.defaults.baseURL });
     const res = await api.post('/login', { email, password, role });
     const data = res.data;
+    console.log('[LOGIN] Success:', data);
 
     const user = {
       email: data.email,
@@ -29,8 +31,16 @@ export const loginSim = async (email, password, role) => {
     return user;
   } catch (err) {
     // If backend is unreachable, fall back to mock login for development
+    console.error('[LOGIN] Failed:', {
+      hasResponse: !!err.response,
+      status: err.response?.status,
+      errorMessage: err.message,
+      fullError: err
+    });
+    
     if (!err.response) {
-      console.warn('Backend unreachable — using mock login');
+      console.warn('⚠️  Backend unreachable — using mock login');
+      console.warn('Make sure the PHP backend is running at:', api.defaults.baseURL);
       return mockLogin(email, password, role);
     }
     const message = err.response?.data?.message || 'Login failed';
@@ -43,8 +53,10 @@ export const loginSim = async (email, password, role) => {
  */
 export const signupSim = async (name, email, password, role) => {
   try {
+    console.log('[SIGNUP] Attempting registration with:', { name, email, role, apiUrl: api.defaults.baseURL });
     const res = await api.post('/register', { name, email, password, phone: '', role });
     const data = res.data;
+    console.log('[SIGNUP] Success:', data);
 
     const user = {
       email: data.email,
@@ -58,8 +70,16 @@ export const signupSim = async (name, email, password, role) => {
     localStorage.setItem('auth_token', user.token);
     return user;
   } catch (err) {
+    console.error('[SIGNUP] Failed:', {
+      hasResponse: !!err.response,
+      status: err.response?.status,
+      errorMessage: err.message,
+      fullError: err
+    });
+    
     if (!err.response) {
-      console.warn('Backend unreachable — using mock signup');
+      console.warn('⚠️  Backend unreachable — using mock signup');
+      console.warn('Make sure the PHP backend is running at:', api.defaults.baseURL);
       return mockLogin(email, password, role);
     }
     const message = err.response?.data?.message || 'Registration failed';

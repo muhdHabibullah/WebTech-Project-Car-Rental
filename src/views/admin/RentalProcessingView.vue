@@ -115,10 +115,11 @@
 </style>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { mockData } from '@/utils/mockData';
+import { ref, computed, onMounted } from 'vue';
+import api from '@/utils/axios';
 
-const rentals = ref(mockData.rentals);
+const rentals = ref([]);
+const isLoading = ref(true);
 
 // Compute rentals by status
 const bookedRentals = computed(() => {
@@ -133,23 +134,58 @@ const completedRentals = computed(() => {
   return rentals.value.filter((rental) => rental.status === 'completed');
 });
 
+// Fetch rentals from API
+const fetchRentals = async () => {
+  try {
+    isLoading.value = true;
+    console.log('[RENTAL PROCESSING] Fetching rentals from API...');
+    const res = await api.get('/admin/rentals');
+    rentals.value = res.data || [];
+    console.log('[RENTAL PROCESSING] Rentals loaded:', rentals.value.length);
+  } catch (error) {
+    console.error('[RENTAL PROCESSING] Error fetching rentals:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // Start a rental (move from booked to ongoing)
-const startRental = (id) => {
+const startRental = async (id) => {
   const rental = rentals.value.find((r) => r.id === id);
-  if (rental && confirm(`Start rental for ${rental.customerName}?`)) {
-    rental.status = 'ongoing';
-    alert('Rental started successfully!');
+  if (!rental) return;
+  
+  if (confirm(`Start rental for ${rental.customer_name || 'Customer'}?`)) {
+    try {
+      await api.put(`/admin/rentals/${id}`, { status: 'ongoing' });
+      rental.status = 'ongoing';
+      alert('Rental started successfully!');
+    } catch (error) {
+      console.error('Error starting rental:', error);
+      alert('Failed to start rental. Check console for details.');
+    }
   }
 };
 
 // End a rental (move from ongoing to completed)
-const endRental = (id) => {
+const endRental = async (id) => {
   const rental = rentals.value.find((r) => r.id === id);
-  if (rental && confirm(`End rental for ${rental.customerName}?`)) {
-    rental.status = 'completed';
-    alert('Rental completed successfully!');
+  if (!rental) return;
+  
+  if (confirm(`End rental for ${rental.customer_name || 'Customer'}?`)) {
+    try {
+      await api.put(`/admin/rentals/${id}`, { status: 'completed' });
+      rental.status = 'completed';
+      alert('Rental completed successfully!');
+    } catch (error) {
+      console.error('Error completing rental:', error);
+      alert('Failed to complete rental. Check console for details.');
+    }
   }
 };
+
+onMounted(() => {
+  fetchRentals();
+});
 </script>
 
 <style scoped>

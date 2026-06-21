@@ -254,12 +254,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import { activeBookingPendingFeedback, addFeedback, updateFeedback, deleteFeedback, feedbacks } from '../../utils/mockData';
+import { ref, reactive, computed, onMounted } from 'vue';
+import api from '../../utils/axios';
 import { currentUser } from '../../utils/session';
 
-const activeBooking = activeBookingPendingFeedback;
-const activeTab = ref(activeBooking.value ? 'submit' : 'history');
+const feedbacks = ref([]);
+const isLoading = ref(true);
+const activeBooking = ref(null);
+const activeTab = ref('history');
 const editingFeedbackId = ref(null);
 
 // Form data structure
@@ -393,13 +395,33 @@ const cancelEdit = () => {
   activeTab.value = 'history';
 };
 
+// Fetch feedback from API
+const fetchFeedback = async () => {
+  try {
+    isLoading.value = true;
+    console.log('[FEEDBACK] Fetching feedback from API...');
+    const res = await api.get('/feedback');
+    feedbacks.value = res.data || [];
+    console.log('[FEEDBACK] Feedbacks loaded:', feedbacks.value.length);
+    if (feedbacks.value.length > 0) {
+      activeTab.value = 'history';
+    }
+  } catch (error) {
+    console.error('[FEEDBACK] Error fetching feedback:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 // Initiate Deletion
 const handleDelete = async (feedbackId) => {
   if (confirm('Are you sure you want to delete this feedback? This action cannot be undone.')) {
     try {
-      await deleteFeedback(feedbackId);
+      await api.delete(`/feedback/${feedbackId}`);
+      feedbacks.value = feedbacks.value.filter(f => f.id !== feedbackId);
       addToast('Feedback deleted successfully!', 'success');
     } catch (error) {
+      console.error('Error deleting feedback:', error);
       addToast('Failed to delete feedback. Please try again.', 'danger');
     }
   }
@@ -426,21 +448,24 @@ const submitFeedbackForm = async () => {
   try {
     if (editingFeedbackId.value) {
       const payload = {
-        stars: form.stars,
+        rating: form.stars,
         comment: form.comment.trim()
       };
-      await updateFeedback(editingFeedbackId.value, payload);
+      await api.put(`/feedback/${editingFeedbackId.value}`, payload);
+      const feedback = feedbacks.value.find(f => f.id === editingFeedbackId.value);
+      if (feedback) {
+        feedback.rating = form.stars;
+        feedback.comment = form.comment.trim();
+      }
       addToast('Your review has been updated successfully!', 'success');
       editingFeedbackId.value = null;
     } else {
       const payload = {
-        author: currentUser.value ? currentUser.value.name : 'Customer Account',
-        bookingId: displayBooking.value.bookingId,
-        stars: form.stars,
-        comment: form.comment.trim(),
-        car: displayBooking.value.car
+        rating: form.stars,
+        comment: form.comment.trim()
       };
-      await addFeedback(payload);
+      const res = await api.post('/feedback', payload);
+      feedbacks.value.push(res.data);
       addToast('Thank you! Your feedback has been registered.', 'success');
     }
     
@@ -461,6 +486,10 @@ const submitFeedbackForm = async () => {
     isSubmitting.value = false;
   }
 };
+
+onMounted(() => {
+  fetchFeedback();
+});
 </script>
 
 <style scoped>
