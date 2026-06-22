@@ -1,7 +1,7 @@
 -- DriveEase Car Rental System MySQL Schema & Seeds
 
-CREATE DATABASE IF NOT EXISTS `driveease_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `driveease_db`;
+-- CREATE DATABASE IF NOT EXISTS `driveease_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE `driveease_db`;
 
 -- 1. Users Table (Handles authentication credentials and roles)
 CREATE TABLE IF NOT EXISTS `users` (
