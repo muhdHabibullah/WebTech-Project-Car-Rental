@@ -244,6 +244,27 @@ class AuthController {
         }
     }
 
+    public function deleteProfile(Request $request, Response $response): Response {
+        $user = $request->getAttribute('user');
+        if (!$user) {
+            return $this->jsonResponse($response, ["message" => "Unauthorized access."], 401);
+        }
+
+        try {
+            // Delete user, which will cascade and delete customer profile, bookings, payments, etc.
+            $stmt = $this->db->prepare("DELETE FROM users WHERE id = :id");
+            $stmt->execute([':id' => $user->sub]);
+
+            return $this->jsonResponse($response, [
+                "status" => "success",
+                "message" => "Account deleted successfully"
+            ]);
+
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, ["message" => "Server error: " . $e->getMessage()], 500);
+        }
+    }
+
     private function jsonResponse(Response $response, array $data, int $status = 200): Response {
         $response->getBody()->write(json_encode($data, JSON_PRETTY_PRINT));
         return $response

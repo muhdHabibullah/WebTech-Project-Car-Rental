@@ -80,6 +80,11 @@ $app->group('/api', function ($group) {
         return $controller->updateProfile($request, $response);
     });
 
+    $group->delete('/profile', function ($request, $response) {
+        $controller = new AuthController();
+        return $controller->deleteProfile($request, $response);
+    });
+
     // Bookings
     $group->get('/bookings', function ($request, $response) {
         $controller = new BookingController();
@@ -184,21 +189,6 @@ $app->group('/api/admin', function ($group) {
     $group->get('/customers', function ($request, $response) {
         $controller = new CustomerController();
         return $controller->getAll($request, $response);
-    });
-
-    $group->post('/customers', function ($request, $response) {
-        $controller = new CustomerController();
-        return $controller->create($request, $response);
-    });
-
-    $group->put('/customers/{id}', function ($request, $response, $args) {
-        $controller = new CustomerController();
-        return $controller->update($request, $response, $args);
-    });
-
-    $group->delete('/customers/{id}', function ($request, $response, $args) {
-        $controller = new CustomerController();
-        return $controller->delete($request, $response, $args);
     });
 
 })->add(new JwtAuthMiddleware(['admin']));

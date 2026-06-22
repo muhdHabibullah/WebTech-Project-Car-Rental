@@ -292,7 +292,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { fetchCarById, createBooking } from '../../utils/mockData';
+import api from '../../utils/axios';
 import { currentUser } from '../../utils/session';
 
 const route = useRoute();
@@ -325,6 +325,13 @@ const touched = reactive({
   phone: false,
   pickupDate: false,
   returnDate: false
+});
+
+// Pre-fill user profile info if logged in
+onMounted(() => {
+  if (user.value) {
+    form.customerName = user.value.name || '';
+  }
 });
 
 // Validation rules
@@ -360,7 +367,6 @@ const isFormValid = computed(() => {
 });
 
 const handleBooking = async () => {
-  // Mark all fields as touched
   touched.customerName = true;
   touched.phone = true;
   touched.pickupDate = true;
@@ -374,17 +380,14 @@ const handleBooking = async () => {
 
   isSubmitting.value = true;
   try {
-    const booking = await createBooking({
+    const res = await api.post('/bookings', {
       carId: car.value.id,
-      carName: `${car.value.brand} ${car.value.name}`,
-      customerName: form.customerName.trim(),
-      phone: form.phone.trim(),
-      pickupDate: form.pickupDate,
-      returnDate: form.returnDate,
+      startDate: form.pickupDate,
+      endDate: form.returnDate,
       totalPrice: totalPrice.value,
       specialRequests: form.specialRequests.trim()
     });
-    confirmedBookingId.value = booking.id;
+    confirmedBookingId.value = res.data.id;
     bookingSuccess.value = true;
   } catch (err) {
     console.error('Booking failed:', err);
@@ -396,7 +399,7 @@ const handleBooking = async () => {
 };
 
 const resetForm = () => {
-  form.customerName = '';
+  form.customerName = user.value ? user.value.name : '';
   form.phone = '';
   form.pickupDate = '';
   form.returnDate = '';
@@ -413,7 +416,8 @@ onMounted(async () => {
   isLoading.value = true;
   try {
     const carId = route.params.id;
-    car.value = await fetchCarById(carId);
+    const res = await api.get(`/cars/${carId}`);
+    car.value = res.data;
   } catch (err) {
     console.error('Failed to load car:', err);
   } finally {

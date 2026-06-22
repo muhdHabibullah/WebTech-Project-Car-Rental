@@ -20,7 +20,8 @@ class BookingController {
 
         try {
             $query = "SELECT b.*, c.name as customer_name, c.phone as customer_phone, 
-                             car.brand as car_brand, car.name as car_model
+                             car.brand as car_brand, car.name as car_model,
+                             (SELECT status FROM payments WHERE booking_id = b.id ORDER BY created_at DESC LIMIT 1) as payment_status
                       FROM bookings b
                       JOIN customers c ON b.customer_id = c.id
                       JOIN cars car ON b.car_id = car.id";
@@ -53,7 +54,8 @@ class BookingController {
 
         try {
             $stmt = $this->db->prepare("SELECT b.*, c.name as customer_name, c.phone as customer_phone, 
-                                               car.brand as car_brand, car.name as car_model
+                                               car.brand as car_brand, car.name as car_model,
+                                               (SELECT status FROM payments WHERE booking_id = b.id ORDER BY created_at DESC LIMIT 1) as payment_status
                                         FROM bookings b
                                         JOIN customers c ON b.customer_id = c.id
                                         JOIN cars car ON b.car_id = car.id
@@ -88,10 +90,11 @@ class BookingController {
         $specialRequests = $data['specialRequests'] ?? '';
         $totalPrice = floatval($data['totalPrice'] ?? 0);
         
-        // Admins can specify customerId, customers default to their own ID from token
-        $customerId = ($user->role === 'admin' && isset($data['customerId'])) 
-            ? intval($data['customerId']) 
-            : intval($user->customerId);
+        if ($user->role === 'admin') {
+            return $this->jsonResponse($response, ["message" => "Admins are not allowed to create bookings."], 403);
+        }
+
+        $customerId = intval($user->customerId);
 
         if (empty($carId) || empty($startDate) || empty($endDate) || $customerId <= 0) {
             return $this->jsonResponse($response, ["message" => "Missing required booking details"], 400);
@@ -159,6 +162,16 @@ class BookingController {
                 ':return_date' => $endDate
             ]);
 
+            // Automatically create a pending Payment record so it appears on customer's Payments page
+            $payId = "PAY-" . rand(1000, 9999);
+            $payStmt = $this->db->prepare("INSERT INTO payments (id, booking_id, amount, method, status, date, details) VALUES (:id, :booking_id, :amount, 'Pending', 'pending', :date, 'Awaiting payment submission')");
+            $payStmt->execute([
+                ':id' => $payId,
+                ':booking_id' => $bkgId,
+                ':amount' => $totalPrice,
+                ':date' => date('Y-m-d')
+            ]);
+
             $this->db->commit();
 
             // Fetch the created record for response
@@ -211,16 +224,25 @@ class BookingController {
                 }
             }
 
+            // Prevent cancelling active or completed bookings
+            if ($status === 'cancelled' && !in_array($existing['status'], ['pending', 'confirmed'])) {
+                return $this->jsonResponse($response, ["message" => "Only pending or confirmed bookings can be cancelled"], 400);
+            }
+
             $this->db->beginTransaction();
 
             $upStmt = $this->db->prepare("UPDATE bookings SET status = :status WHERE id = :id");
             $upStmt->execute([':status' => $status, ':id' => $id]);
 
-            // Sync with rentals if status is cancelled
+            // Sync with rentals and payments if status is cancelled
             if ($status === 'cancelled') {
-                // Delete corresponding rental or set status
+                // Delete corresponding rental
                 $delRentStmt = $this->db->prepare("DELETE FROM rentals WHERE booking_id = :booking_id");
                 $delRentStmt->execute([':booking_id' => $id]);
+                
+                // Delete any pending payment so it doesn't clutter the clearance queue
+                $delPayStmt = $this->db->prepare("DELETE FROM payments WHERE booking_id = :booking_id AND status = 'pending'");
+                $delPayStmt->execute([':booking_id' => $id]);
             }
 
             $this->db->commit();
@@ -280,6 +302,7 @@ class BookingController {
             'endDate' => $b['return_date'],
             'totalPrice' => floatval($b['total_price']),
             'status' => $b['status'],
+            'paymentStatus' => $b['payment_status'] ?? 'unpaid',
             'specialRequests' => $b['special_requests'] ?? ''
         ];
     }

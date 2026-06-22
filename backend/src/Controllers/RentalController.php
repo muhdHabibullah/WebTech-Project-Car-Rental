@@ -17,7 +17,9 @@ class RentalController {
 
     public function getAll(Request $request, Response $response): Response {
         try {
-            $query = "SELECT r.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
+            $query = "SELECT r.*, c.name as customer_name, car.brand as car_brand, car.name as car_model, 
+                             b.status as booking_status,
+                             (SELECT status FROM payments WHERE booking_id = b.id ORDER BY created_at DESC LIMIT 1) as payment_status
                       FROM rentals r
                       JOIN bookings b ON r.booking_id = b.id
                       JOIN customers c ON b.customer_id = c.id
@@ -47,13 +49,27 @@ class RentalController {
         try {
             $this->db->beginTransaction();
 
-            // Fetch current rental details
-            $stmt = $this->db->prepare("SELECT r.*, b.car_id, b.id as booking_id FROM rentals r JOIN bookings b ON r.booking_id = b.id WHERE r.id = :id");
+            // Fetch current rental details with booking and payment status
+            $stmt = $this->db->prepare("SELECT r.*, b.car_id, b.status as booking_status, b.id as booking_id, 
+                                        (SELECT status FROM payments WHERE booking_id = b.id ORDER BY created_at DESC LIMIT 1) as payment_status 
+                                        FROM rentals r 
+                                        JOIN bookings b ON r.booking_id = b.id 
+                                        WHERE r.id = :id");
             $stmt->execute([':id' => $id]);
             $rental = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$rental) {
                 return $this->jsonResponse($response, ["message" => "Rental record not found"], 404);
+            }
+
+            // Enforce business logic: only start rental if booking is confirmed and payment is paid
+            if ($status === 'ongoing') {
+                if ($rental['booking_status'] !== 'confirmed') {
+                    return $this->jsonResponse($response, ["message" => "Booking must be confirmed to start rental."], 400);
+                }
+                if ($rental['payment_status'] !== 'paid') {
+                    return $this->jsonResponse($response, ["message" => "Payment must be completed to start rental."], 400);
+                }
             }
 
             // Perform state change actions
@@ -98,13 +114,15 @@ class RentalController {
 
     private function formatRental(array $r): array {
         return [
-            'id' => intval($r['id']),
-            'bookingId' => $r['booking_id'],
-            'customerName' => $r['customer_name'] ?? '',
-            'carInfo' => isset($r['car_brand']) ? ($r['car_brand'] . ' ' . $r['car_model']) : '',
-            'startDate' => $r['pickup_date'],
-            'endDate' => $r['return_date'],
-            'status' => $r['status']
+            "id" => $r['id'],
+            "bookingId" => $r['booking_id'],
+            "customerName" => $r['customer_name'] ?? 'Unknown Customer',
+            "carInfo" => ($r['car_brand'] ?? '') . ' ' . ($r['car_model'] ?? 'Unknown Car'),
+            "startDate" => $r['pickup_date'],
+            "endDate" => $r['return_date'],
+            "status" => $r['status'],
+            "bookingStatus" => $r['booking_status'] ?? 'pending',
+            "paymentStatus" => $r['payment_status'] ?? 'unpaid'
         ];
     }
 

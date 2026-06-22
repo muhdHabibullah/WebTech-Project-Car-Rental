@@ -86,6 +86,10 @@
                   <span class="review-date">{{ fdb.date }}</span>
                 </div>
               </div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; background: #f8fafc; padding: 0.5rem; border-radius: var(--radius-sm); border-left: 3px solid var(--primary-light);">
+                <strong>Duration:</strong> {{ fdb.startDate }} to {{ fdb.endDate }} &nbsp;|&nbsp; 
+                <strong>Cost:</strong> RM{{ parseFloat(fdb.totalPrice || 0).toFixed(2) }}
+              </div>
               
               <p class="review-text">"{{ fdb.comment }}"</p>
 
@@ -206,6 +210,15 @@
                   >
                     Cancel Edit
                   </button>
+                  <button 
+                    v-else
+                    type="button"
+                    class="btn btn-outline"
+                    style="flex: 1;"
+                    @click="activeBooking = null"
+                  >
+                    Cancel
+                  </button>
                   
                   <button 
                     type="submit" 
@@ -225,7 +238,30 @@
             </div>
           </div>
 
-          <!-- Scenario 2: No Pending Booking & Not Editing -->
+          <!-- Scenario 2: Select a Pending Booking -->
+          <div v-else-if="pendingReviews.length > 0" style="max-width: 800px; margin: 0 auto; width: 100%;">
+            <h3 class="card-title" style="margin-bottom: 1.5rem;">Select a Rental to Review</h3>
+            <div class="reviews-feed">
+              <div 
+                v-for="b in pendingReviews" 
+                :key="b.bookingId" 
+                class="review-card" 
+                style="border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center;"
+              >
+                <div>
+                  <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">{{ b.car }}</h4>
+                  <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    Returned on {{ b.date }} | Ref: <span style="font-family: monospace;">{{ b.bookingId }}</span>
+                  </div>
+                </div>
+                <button @click="startReview(b)" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                  Write Review
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scenario 3: No Pending Booking & Not Editing -->
           <div v-else style="max-width: 600px; margin: 3rem auto; text-align: center;">
             <div class="card" style="padding: 3rem 2rem;">
               <div style="font-size: 4rem; margin-bottom: 1rem;">🎉</div>
@@ -263,6 +299,7 @@ const isLoading = ref(true);
 const activeBooking = ref(null);
 const activeTab = ref('history');
 const editingFeedbackId = ref(null);
+const pendingReviews = ref([]);
 
 // Form data structure
 const form = reactive({
@@ -395,15 +432,47 @@ const cancelEdit = () => {
   activeTab.value = 'history';
 };
 
+const startReview = (booking) => {
+  activeBooking.value = booking;
+  form.stars = 0;
+  form.comment = '';
+  dirty.stars = false;
+  dirty.comment = false;
+};
+
 // Fetch feedback from API
 const fetchFeedback = async () => {
   try {
     isLoading.value = true;
     console.log('[FEEDBACK] Fetching feedback from API...');
-    const res = await api.get('/feedback');
-    feedbacks.value = res.data || [];
+    const [resFeedback, resBookings] = await Promise.all([
+      api.get('/feedback'),
+      api.get('/bookings')
+    ]);
+    
+    feedbacks.value = resFeedback.data || [];
+    const myBookings = resBookings.data || [];
+    
     console.log('[FEEDBACK] Feedbacks loaded:', feedbacks.value.length);
-    if (feedbacks.value.length > 0) {
+    
+    // Find all completed bookings that have no feedback
+    const completedBookings = myBookings.filter(b => b.status === 'completed');
+    pendingReviews.value = completedBookings
+      .filter(b => !feedbacks.value.some(f => f.bookingId === b.id))
+      .map(b => ({
+        bookingId: b.id,
+        car: b.car || 'Your Rental',
+        date: b.endDate,
+        totalAmount: b.totalPrice || 0
+      }));
+    
+    activeBooking.value = null; // Do not auto-select, let user pick from list
+
+    if (feedbacks.value.length > 0 && pendingReviews.value.length === 0) {
+      activeTab.value = 'history';
+    } else if (pendingReviews.value.length > 0) {
+      activeTab.value = 'submit';
+    } else {
       activeTab.value = 'history';
     }
   } catch (error) {
@@ -461,12 +530,16 @@ const submitFeedbackForm = async () => {
       editingFeedbackId.value = null;
     } else {
       const payload = {
+        bookingId: activeBooking.value.bookingId,
         stars: form.stars,
         comment: form.comment.trim()
       };
       const res = await api.post('/feedback', payload);
       feedbacks.value.push(res.data);
+      activeBooking.value = null; // Clear active booking after review
       addToast('Thank you! Your feedback has been registered.', 'success');
+      // Fetch again to ensure state is completely in sync
+      await fetchFeedback();
     }
     
     // Reset Form fields

@@ -94,14 +94,9 @@
                   </button>
                 </div>
                 <div v-else style="display: inline-flex; gap: 0.5rem; justify-content: center; align-items: center;">
-                  <button 
-                    v-if="pay.status === 'flagged'" 
-                    @click="handleApprove(pay.id)" 
-                    class="btn btn-sm btn-success" 
-                    style="opacity: 0.8;"
-                  >
-                    Clear Flag
-                  </button>
+                  <span v-if="pay.status === 'flagged'" style="font-size: 0.75rem; color: var(--status-danger); font-weight: 700;">
+                    ⚠ Flagged
+                  </span>
                   <span v-else style="font-size: 0.75rem; color: var(--status-success); font-weight: 700;">
                     ✓ Authorized Verified
                   </span>
