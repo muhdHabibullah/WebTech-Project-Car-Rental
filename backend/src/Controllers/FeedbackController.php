@@ -17,7 +17,7 @@ class FeedbackController {
 
     public function getAll(Request $request, Response $response): Response {
         try {
-            $query = "SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
+            $query = "SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model, b.pickup_date as start_date, b.return_date as end_date, b.total_price
                       FROM feedback f
                       JOIN customers c ON f.customer_id = c.id
                       JOIN bookings b ON f.booking_id = b.id
@@ -35,7 +35,10 @@ class FeedbackController {
                     'stars' => intval($f['stars']),
                     'comment' => $f['comment'],
                     'date' => $f['date'],
-                    'car' => isset($f['car_brand']) ? ($f['car_brand'] . ' ' . $f['car_model']) : ''
+                    'car' => isset($f['car_brand']) ? ($f['car_brand'] . ' ' . $f['car_model']) : '',
+                    'startDate' => $f['start_date'],
+                    'endDate' => $f['end_date'],
+                    'totalPrice' => $f['total_price']
                 ];
             }, $feedbacks);
 
@@ -58,14 +61,22 @@ class FeedbackController {
             return $this->jsonResponse($response, ["message" => "Missing or invalid feedback details"], 400);
         }
 
+        if ($user->role === 'admin') {
+            return $this->jsonResponse($response, ["message" => "Admins are not allowed to submit reviews."], 403);
+        }
+
         try {
             // Verify booking ownership if customer
-            $bkgStmt = $this->db->prepare("SELECT customer_id, car_id FROM bookings WHERE id = :id");
+            $bkgStmt = $this->db->prepare("SELECT customer_id, car_id, status FROM bookings WHERE id = :id");
             $bkgStmt->execute([':id' => $bookingId]);
             $booking = $bkgStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$booking) {
                 return $this->jsonResponse($response, ["message" => "Associated booking not found"], 404);
+            }
+            
+            if ($booking['status'] !== 'completed') {
+                return $this->jsonResponse($response, ["message" => "You can only review completed rentals."], 400);
             }
 
             $customerId = intval($user->customerId);
@@ -90,7 +101,7 @@ class FeedbackController {
             ]);
 
             // Fetch created feedback for response
-            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
+            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model, b.pickup_date as start_date, b.return_date as end_date, b.total_price
                                            FROM feedback f
                                            JOIN customers c ON f.customer_id = c.id
                                            JOIN bookings b ON f.booking_id = b.id
@@ -106,7 +117,10 @@ class FeedbackController {
                 'stars' => intval($newFdb['stars']),
                 'comment' => $newFdb['comment'],
                 'date' => $newFdb['date'],
-                'car' => ($newFdb['car_brand'] . ' ' . $newFdb['car_model'])
+                'car' => ($newFdb['car_brand'] . ' ' . $newFdb['car_model']),
+                'startDate' => $newFdb['start_date'],
+                'endDate' => $newFdb['end_date'],
+                'totalPrice' => $newFdb['total_price']
             ], 201);
 
         } catch (Exception $e) {
@@ -121,6 +135,10 @@ class FeedbackController {
 
         $stars = intval($data['stars'] ?? 0);
         $comment = trim($data['comment'] ?? '');
+
+        if ($user->role === 'admin') {
+            return $this->jsonResponse($response, ["message" => "Admins cannot modify reviews."], 403);
+        }
 
         try {
             // Check ownership
@@ -157,7 +175,7 @@ class FeedbackController {
             $stmt->execute($binds);
 
             // Fetch refreshed item
-            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model
+            $getStmt = $this->db->prepare("SELECT f.*, c.name as customer_name, car.brand as car_brand, car.name as car_model, b.pickup_date as start_date, b.return_date as end_date, b.total_price
                                            FROM feedback f
                                            JOIN customers c ON f.customer_id = c.id
                                            JOIN bookings b ON f.booking_id = b.id
@@ -173,7 +191,10 @@ class FeedbackController {
                 'stars' => intval($updated['stars']),
                 'comment' => $updated['comment'],
                 'date' => $updated['date'],
-                'car' => ($updated['car_brand'] . ' ' . $updated['car_model'])
+                'car' => ($updated['car_brand'] . ' ' . $updated['car_model']),
+                'startDate' => $updated['start_date'],
+                'endDate' => $updated['end_date'],
+                'totalPrice' => $updated['total_price']
             ]);
 
         } catch (Exception $e) {
@@ -184,6 +205,10 @@ class FeedbackController {
     public function delete(Request $request, Response $response, array $args): Response {
         $id = $args['id'];
         $user = $request->getAttribute('user');
+
+        if ($user->role === 'admin') {
+            return $this->jsonResponse($response, ["message" => "Admins cannot delete reviews."], 403);
+        }
 
         try {
             $checkStmt = $this->db->prepare("SELECT customer_id FROM feedback WHERE id = :id");

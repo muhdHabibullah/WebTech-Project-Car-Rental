@@ -111,6 +111,24 @@
         </div>
 
       </div>
+      
+      <!-- Danger Zone -->
+      <div v-if="userRole === 'customer'" style="margin-top: 2rem;">
+        <div class="card" style="border: 1px solid var(--danger); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);">
+          <h3 class="card-title" style="color: var(--danger);">Danger Zone</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Once you delete your account, there is no going back. Please be certain. All your bookings, payments, and feedback will be permanently deleted.
+          </p>
+          <button 
+            @click="deleteAccount" 
+            class="btn btn-danger"
+            :disabled="isDeletingAccount"
+          >
+            {{ isDeletingAccount ? 'Deleting...' : 'Delete Account' }}
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Toast Notification -->
@@ -125,11 +143,15 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue';
 import { currentUser } from '@/utils/session.js';
-import { updateCurrentUserProfile } from '@/utils/mockData.js';
+import api from '@/utils/axios.js';
 
 const toasts = ref([]);
 const isSavingProfile = ref(false);
 const isSavingPassword = ref(false);
+const isDeletingAccount = ref(false);
+
+import { useRouter } from 'vue-router';
+const router = useRouter();
 
 const user = computed(() => currentUser.value || {});
 const userRole = computed(() => user.value.role || 'customer');
@@ -174,14 +196,19 @@ const addToast = (text, type = 'success') => {
 const handleProfileSubmit = async () => {
   isSavingProfile.value = true;
   try {
-    await updateCurrentUserProfile({
+    const payload = {
       name: profileForm.name,
       email: profileForm.email,
       phone: profileForm.phone
-    });
+    };
+    const res = await api.put('/profile', payload);
+    // Sync the local session
+    currentUser.value = { ...currentUser.value, ...res.data };
+    localStorage.setItem('user_session', JSON.stringify(currentUser.value));
     addToast('Profile updated successfully', 'success');
   } catch (err) {
-    addToast('Failed to update profile', 'danger');
+    const msg = err.response?.data?.message || 'Failed to update profile';
+    addToast(msg, 'danger');
   } finally {
     isSavingProfile.value = false;
   }
@@ -204,6 +231,26 @@ const handlePasswordSubmit = async () => {
     addToast('Failed to update password', 'danger');
   } finally {
     isSavingPassword.value = false;
+  }
+};
+
+const deleteAccount = async () => {
+  if (!confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.')) {
+    return;
+  }
+  isDeletingAccount.value = true;
+  try {
+    await api.delete('/profile');
+    addToast('Account deleted successfully. Logging out...', 'success');
+    setTimeout(() => {
+      currentUser.value = null;
+      localStorage.removeItem('user_session');
+      router.push('/login');
+    }, 1500);
+  } catch (err) {
+    const msg = err.response?.data?.message || 'Failed to delete account';
+    addToast(msg, 'danger');
+    isDeletingAccount.value = false;
   }
 };
 </script>

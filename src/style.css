@@ -391,8 +391,13 @@ body {
 }
 
 .badge-pending {
-  background-color: var(--status-pending-bg);
-  color: var(--status-pending);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+.badge-warning {
+  background: #fef08a; /* yellow-200 */
+  color: #854d0e; /* yellow-800 */
 }
 
 .badge-success, .badge-paid, .badge-cleared {

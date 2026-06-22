@@ -218,7 +218,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { fetchCars } from '../utils/mockData';
+import api from '../utils/axios';
 
 const router = useRouter();
 const featuredCars = ref([]);
@@ -227,7 +227,8 @@ const isLoading = ref(true);
 const loadFeaturedCars = async () => {
   isLoading.value = true;
   try {
-    const list = await fetchCars({ availableOnly: true });
+    const res = await api.get('/cars', { params: { availableOnly: true } });
+    const list = res.data || [];
     // Take first 3 cars as featured
     featuredCars.value = list.slice(0, 3);
   } catch (error) {

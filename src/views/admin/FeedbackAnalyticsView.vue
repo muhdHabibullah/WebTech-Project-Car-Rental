@@ -133,17 +133,9 @@
             <p class="review-text" style="font-size: 0.85rem; font-style: italic; background: #f8fafc; padding: 0.75rem; border-radius: var(--radius-sm);">
               "{{ rev.comment }}"
             </p>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; font-size: 0.75rem;">
-              <div style="font-weight: 700; color: var(--primary-dark);">
-                Vehicle Driven: {{ rev.car || 'Standard Class Utility' }}
-              </div>
-              <button 
-                @click="handleDelete(rev.id)" 
-                class="btn-delete-admin"
-                title="Delete this review"
-              >
-                🗑️ Delete
-              </button>
+            <div style="margin-top: 0.5rem; font-size: 0.75rem; font-weight: 700; color: var(--primary-dark);">
+              Vehicle Driven: {{ rev.car || 'Standard Class Utility' }} <br/>
+              <span style="font-weight: normal; color: var(--text-muted);">Duration: {{ rev.startDate }} to {{ rev.endDate }} &nbsp;|&nbsp; Cost: RM{{ parseFloat(rev.totalPrice || 0).toFixed(2) }}</span>
             </div>
           </div>
         </div>
@@ -161,12 +153,39 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { feedbacks, totalRevenue, averageRating, ratingBreakdown, deleteFeedback } from '../../utils/mockData';
+import { ref, computed, onMounted } from 'vue';
+import api from '../../utils/axios';
 
 const selectedRatingFilter = ref('');
 
-const feedbacksCount = computed(() => feedbacks.value.length);
+const feedbacksList = ref([]);
+const paymentsList = ref([]);
+
+const feedbacksCount = computed(() => feedbacksList.value.length);
+const totalRevenue = computed(() => paymentsList.value.filter(p => p.status === 'paid').reduce((sum, p) => sum + parseFloat(p.amount), 0));
+const averageRating = computed(() => feedbacksList.value.length ? parseFloat((feedbacksList.value.reduce((tot, f) => tot + f.stars, 0) / feedbacksList.value.length).toFixed(1)) : 0);
+const ratingBreakdown = computed(() => {
+  const b = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  feedbacksList.value.forEach(f => { if (b[f.stars] !== undefined) b[f.stars]++; });
+  return b;
+});
+
+const loadData = async () => {
+  try {
+    const [resFeedback, resPayments] = await Promise.all([
+      api.get('/feedback'),
+      api.get('/payments')
+    ]);
+    feedbacksList.value = resFeedback.data || [];
+    paymentsList.value = resPayments.data || [];
+  } catch (err) {
+    console.error('Failed to load data:', err);
+  }
+};
+
+onMounted(() => {
+  loadData();
+});
 
 // Breakdown stats helpers
 const getCount = (stars) => {
@@ -174,15 +193,15 @@ const getCount = (stars) => {
 };
 
 const getPercentage = (stars) => {
-  if (feedbacks.value.length === 0) return 0;
-  return (getCount(stars) / feedbacks.value.length) * 100;
+  if (feedbacksList.value.length === 0) return 0;
+  return (getCount(stars) / feedbacksList.value.length) * 100;
 };
 
 // Filtered reviews computing
 const filteredReviews = computed(() => {
-  if (!selectedRatingFilter.value) return feedbacks.value;
+  if (!selectedRatingFilter.value) return feedbacksList.value;
   const targetStars = parseInt(selectedRatingFilter.value);
-  return feedbacks.value.filter(f => f.stars === targetStars);
+  return feedbacksList.value.filter(f => f.stars === targetStars);
 });
 
 // Toast notification handlers
@@ -194,42 +213,9 @@ const addToast = (text, type = 'success') => {
     toasts.value = toasts.value.filter(t => t.id !== id);
   }, 4000);
 };
-
-// Delete handler
-const handleDelete = async (feedbackId) => {
-  if (confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-    try {
-      await deleteFeedback(feedbackId);
-      addToast('Review deleted successfully!', 'success');
-    } catch (error) {
-      addToast('Failed to delete review. Please try again.', 'danger');
-    }
-  }
-};
 </script>
 
 <style scoped>
-/* Admin Delete Button */
-.btn-delete-admin {
-  background: transparent;
-  border: 1px solid var(--status-danger);
-  color: var(--status-danger);
-  padding: 0.25rem 0.6rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  outline: none;
-}
-
-.btn-delete-admin:hover {
-  background: var(--status-danger-bg);
-  transform: translateY(-1px);
-}
 
 /* Toast container positioning */
 .toast-container {

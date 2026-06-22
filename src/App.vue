@@ -106,6 +106,9 @@
           <router-link to="/admin/dashboard" class="admin-nav-link">
             📊 Overview Dashboard
           </router-link>
+          <router-link to="/admin/bookings" class="admin-nav-link">
+            📅 Bookings Management
+          </router-link>
           <router-link to="/admin/cars" class="admin-nav-link">
             🚘 Car Inventory
           </router-link>

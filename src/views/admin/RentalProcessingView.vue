@@ -28,10 +28,20 @@
               <p style="font-size: 0.9rem; color: var(--text-muted);">{{ rental.carInfo }}</p>
               <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 0.5rem;">{{ rental.startDate }} → {{ rental.endDate }}</p>
             </div>
+            <div style="font-size: 0.8rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <span class="badge" :class="rental.bookingStatus === 'confirmed' ? 'badge-success' : 'badge-pending'">
+                Booking: {{ rental.bookingStatus || 'pending' }}
+              </span>
+              <span class="badge" :class="rental.paymentStatus === 'paid' ? 'badge-success' : 'badge-pending'">
+                Payment: {{ rental.paymentStatus || 'unpaid' }}
+              </span>
+            </div>
             <button
               @click="startRental(rental.id)"
               class="btn btn-success"
               style="width: 100%;"
+              :disabled="rental.bookingStatus !== 'confirmed' || rental.paymentStatus !== 'paid'"
+              :title="rental.bookingStatus !== 'confirmed' || rental.paymentStatus !== 'paid' ? 'Booking must be confirmed and payment must be paid to start rental' : ''"
             >
               ▶ Start Rental
             </button>

@@ -138,21 +138,27 @@ INSERT INTO `bookings` (`id`, `customer_id`, `car_id`, `pickup_date`, `return_da
 ('BKG-9281', 6, 'CAR-001', '2026-05-25', '2026-05-28', 267.00, 'completed', 'Need child seat installed'),
 ('BKG-7492', 4, 'CAR-005', '2026-05-30', '2026-06-02', 330.00, 'active', ''),
 ('BKG-6610', 7, 'CAR-002', '2026-05-22', '2026-05-26', 300.00, 'completed', 'Airport pickup required'),
-('BKG-8831', 8, 'CAR-004', '2026-05-28', '2026-05-30', 190.00, 'completed', 'GPS navigation required');
+('BKG-8831', 8, 'CAR-004', '2026-05-28', '2026-05-30', 190.00, 'completed', 'GPS navigation required'),
+('BKG-1001', 1, 'CAR-003', '2026-06-20', '2026-06-23', 156.00, 'confirmed', 'Early morning pickup preferred'),
+('BKG-1002', 1, 'CAR-006', '2026-06-25', '2026-06-28', 315.00, 'pending', '');
 
 -- Seed Rentals
 INSERT INTO `rentals` (`id`, `booking_id`, `pickup_date`, `return_date`, `status`) VALUES
 (1, 'BKG-9281', '2026-05-25', '2026-05-28', 'completed'),
 (2, 'BKG-7492', '2026-05-30', '2026-06-02', 'ongoing'),
 (3, 'BKG-6610', '2026-05-22', '2026-05-26', 'completed'),
-(4, 'BKG-8831', '2026-05-28', '2026-05-30', 'completed');
+(4, 'BKG-8831', '2026-05-28', '2026-05-30', 'completed'),
+(5, 'BKG-1001', '2026-06-20', '2026-06-23', 'booked'),
+(6, 'BKG-1002', '2026-06-25', '2026-06-28', 'booked');
 
 -- Seed Payments
 INSERT INTO `payments` (`id`, `booking_id`, `amount`, `method`, `status`, `date`, `details`) VALUES
 ('PAY-1001', 'BKG-9281', 320.00, 'Credit Card', 'paid', '2026-05-28', 'Visa ending in 8821'),
 ('PAY-1002', 'BKG-7492', 150.50, 'Bank Transfer', 'pending', '2026-05-30', 'Reference: BT-991203-CHK'),
 ('PAY-1003', 'BKG-6610', 540.00, 'Mobile Wallet', 'paid', '2026-05-25', 'G-Cash: +63 917 123 4567'),
-('PAY-1004', 'BKG-8831', 180.00, 'Credit Card', 'flagged', '2026-05-29', 'Mastercard ending in 1054');
+('PAY-1004', 'BKG-8831', 180.00, 'Credit Card', 'flagged', '2026-05-29', 'Mastercard ending in 1054'),
+('PAY-1005', 'BKG-1001', 156.00, 'Credit Card', 'paid', '2026-06-20', 'Visa ending in 4242'),
+('PAY-1006', 'BKG-1002', 315.00, 'Pending', 'pending', '2026-06-22', 'Awaiting payment submission');
 
 -- Seed Feedback
 INSERT INTO `feedback` (`id`, `booking_id`, `customer_id`, `stars`, `comment`, `date`) VALUES

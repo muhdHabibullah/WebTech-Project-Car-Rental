@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, RouterView } from 'vue-router';
 import { currentUser } from '../utils/session';
 
 // Route configuration
@@ -34,6 +34,7 @@ const routes = [
   // Customer Views (authenticated only)
   {
     path: '/customer',
+    component: RouterView,
     redirect: '/cars',
     meta: { requiresAuth: true, role: 'customer' },
     children: [
@@ -57,6 +58,7 @@ const routes = [
   // Admin Views
   {
     path: '/admin',
+    component: RouterView,
     redirect: '/admin/dashboard',
     meta: { requiresAuth: true, role: 'admin' },
     children: [
@@ -84,6 +86,11 @@ const routes = [
         path: 'rentals',
         name: 'RentalProcessing',
         component: () => import('../views/admin/RentalProcessingView.vue')
+      },
+      {
+        path: 'bookings',
+        name: 'AdminBookingManagement',
+        component: () => import('../views/customer/BookingManagementView.vue')
       }
     ]
   },

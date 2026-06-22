@@ -6,11 +6,6 @@
         <h1 class="page-title">My Payments</h1>
         <p class="page-subtitle">Track your rental charges, view digital invoices, or submit a new payment reference.</p>
       </div>
-      <div>
-        <button @click="showForm = !showForm" class="btn btn-primary">
-          {{ showForm ? 'Hide Form' : 'Submit New Payment' }}
-        </button>
-      </div>
     </div>
 
     <!-- Main Dynamic Grid Layout -->
@@ -46,6 +41,14 @@
                   </td>
                   <td>
                     <button 
+                      v-if="pay.status === 'pending' && (pay.method === 'Pending' || !pay.method)"
+                      @click="startPayNow(pay)" 
+                      class="btn btn-primary btn-sm"
+                    >
+                      Pay Now
+                    </button>
+                    <button 
+                      v-else
                       @click="viewReceipt(pay)" 
                       class="btn btn-outline btn-sm"
                       :disabled="pay.status !== 'paid'"
@@ -63,7 +66,7 @@
       <!-- Right Column: Interactive Payment Form (Slide In or Toggled) -->
       <div v-if="showForm || true" style="transition: all 0.3s ease;">
         <div class="card" :class="{ 'shake': formHasError }">
-          <h3 class="card-title">Submit Rental Payment</h3>
+          <h3 class="card-title">{{ editingPayment ? 'Complete Payment' : 'Submit Rental Payment' }}</h3>
           <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
             Provide your payment proof details here. Once submitted, our administrator will verify the clearance.
           </p>
@@ -79,12 +82,13 @@
                 @blur="v.bookingId.$touch()"
                 class="form-control" 
                 :class="{ 
-                  'is-valid': v.bookingId.$dirty && !v.bookingId.$error, 
-                  'is-invalid': v.bookingId.$dirty && v.bookingId.$error 
+                  'is-valid': formDirty.bookingId && !formErrors.bookingId, 
+                  'is-invalid': formDirty.bookingId && formErrors.bookingId 
                 }"
                 placeholder="e.g. BKG-7492" 
+                :disabled="!!editingPayment"
               />
-              <span v-if="v.bookingId.$dirty && v.bookingId.$error" class="invalid-feedback">
+              <span v-if="formDirty.bookingId && formErrors.bookingId" class="invalid-feedback">
                 Booking ID is required and must follow 'BKG-XXXX' format.
               </span>
             </div>
@@ -99,12 +103,13 @@
                 @blur="v.amount.$touch()"
                 class="form-control" 
                 :class="{ 
-                  'is-valid': v.amount.$dirty && !v.amount.$error, 
-                  'is-invalid': v.amount.$dirty && v.amount.$error 
+                  'is-valid': formDirty.amount && !formErrors.amount, 
+                  'is-invalid': formDirty.amount && formErrors.amount 
                 }"
                 placeholder="e.g. 150.50" 
+                :disabled="!!editingPayment"
               />
-              <span v-if="v.amount.$dirty && v.amount.$error" class="invalid-feedback">
+              <span v-if="formDirty.amount && formErrors.amount" class="invalid-feedback">
                 Please enter a valid numeric decimal amount (e.g. 150 or 150.50).
               </span>
             </div>
@@ -118,8 +123,8 @@
                 @change="v.method.$touch()"
                 class="form-control" 
                 :class="{ 
-                  'is-valid': v.method.$dirty && !v.method.$error, 
-                  'is-invalid': v.method.$dirty && v.method.$error 
+                  'is-valid': formDirty.method && !formErrors.method, 
+                  'is-invalid': formDirty.method && formErrors.method 
                 }"
               >
                 <option value="">-- Select Payment Option --</option>
@@ -127,7 +132,7 @@
                 <option value="Bank Transfer">Bank Transfer</option>
                 <option value="Mobile Wallet">Mobile Wallet</option>
               </select>
-              <span v-if="v.method.$dirty && v.method.$error" class="invalid-feedback">
+              <span v-if="formDirty.method && formErrors.method" class="invalid-feedback">
                 Please choose a payment method.
               </span>
             </div>
@@ -142,12 +147,12 @@
                 rows="3"
                 class="form-control" 
                 :class="{ 
-                  'is-valid': v.details.$dirty && !v.details.$error, 
-                  'is-invalid': v.details.$dirty && v.details.$error 
+                  'is-valid': formDirty.details && !formErrors.details, 
+                  'is-invalid': formDirty.details && formErrors.details 
                 }"
                 placeholder="e.g. Visa ending 4242 or Transaction Reference #991203"
               ></textarea>
-              <span v-if="v.details.$dirty && v.details.$error" class="invalid-feedback">
+              <span v-if="formDirty.details && formErrors.details" class="invalid-feedback">
                 Card or reference details are required for authorization verification.
               </span>
             </div>
@@ -161,7 +166,7 @@
                 :disabled="isSubmitting"
               >
                 <span v-if="isSubmitting">Processing Transaction...</span>
-                <span v-else>Pay Now</span>
+                <span v-else>{{ editingPayment ? 'Confirm Payment' : 'Pay Now' }}</span>
               </button>
               <button type="button" @click="resetForm" class="btn btn-outline">
                 Clear
@@ -229,15 +234,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import { payments, addPayment } from '../../utils/mockData';
+import { ref, reactive, computed, onMounted } from 'vue';
 import api from '../../utils/axios';
 
 const showForm = ref(true);
 const isSubmitting = ref(false);
 const formHasError = ref(false);
 const activeReceipt = ref(null);
+const editingPayment = ref(null);
 const toasts = ref([]);
+const payments = ref([]);
 
 const form = reactive({
   bookingId: '',
@@ -301,12 +307,21 @@ const v = {
 };
 
 const isFormValid = computed(() => {
-  // Return true only if all fields touched and no errors
   return formDirty.bookingId && !formErrors.bookingId &&
          formDirty.amount && !formErrors.amount &&
          formDirty.method && !formErrors.method &&
          formDirty.details && !formErrors.details;
 });
+
+// Load payments
+const loadPayments = async () => {
+  try {
+    const res = await api.get('/payments');
+    payments.value = res.data || [];
+  } catch (error) {
+    console.error('Failed to load payments:', error);
+  }
+};
 
 // View Receipt Modal
 const viewReceipt = (pay) => {
@@ -319,15 +334,33 @@ const resetForm = () => {
   form.amount = '';
   form.method = '';
   form.details = '';
+  editingPayment.value = null;
   
-  // Reset dirty & error trackers
   Object.keys(formDirty).forEach(k => formDirty[k] = false);
   Object.keys(formErrors).forEach(k => formErrors[k] = false);
 };
 
-// Submitting transaction asynchronously
+// Pre-fill form for pending payment
+const startPayNow = (pay) => {
+  editingPayment.value = pay;
+  form.bookingId = pay.bookingId;
+  form.amount = pay.amount.toFixed(2);
+  form.method = '';
+  form.details = '';
+  showForm.value = true;
+  
+  // Reset dirty/errors so user can fill method and details
+  Object.keys(formDirty).forEach(k => formDirty[k] = false);
+  Object.keys(formErrors).forEach(k => formErrors[k] = false);
+  // Pre-validate bookingId and amount since they're already filled
+  formDirty.bookingId = true;
+  formErrors.bookingId = false;
+  formDirty.amount = true;
+  formErrors.amount = false;
+};
+
+// Submitting transaction
 const submitForm = async () => {
-  // Touch all fields to trigger immediate red/green visual checks
   Object.keys(v).forEach(k => v[k].$touch());
 
   if (formErrors.bookingId || formErrors.amount || formErrors.method || formErrors.details) {
@@ -339,25 +372,31 @@ const submitForm = async () => {
   isSubmitting.value = true;
   
   try {
-    const payload = {
-      bookingId: form.bookingId.trim(),
-      amount: parseFloat(form.amount),
-      method: form.method,
-      details: form.details.trim()
-    };
-
-    // Simulate standard HTTP POST request payload mapping
-    console.log('[Axios Dummy Hook] Sending API request payload to baseURL:', api.defaults.baseURL);
-    console.log('[Axios Payload]', payload);
-
-    // Call simulated async hook database
-    const response = await addPayment(payload);
-    
-    addToast(`Payment of RM${response.amount.toFixed(2)} submitted successfully! ID: ${response.id}`, 'success');
+    if (editingPayment.value) {
+      // Update existing pending payment with method and details
+      const payload = {
+        method: form.method,
+        details: form.details.trim()
+      };
+      await api.put(`/payments/${editingPayment.value.id}`, payload);
+      addToast(`Payment ${editingPayment.value.id} submitted successfully! Awaiting admin verification.`, 'success');
+    } else {
+      // Create a brand new payment
+      const payload = {
+        bookingId: form.bookingId.trim(),
+        amount: parseFloat(form.amount),
+        method: form.method,
+        details: form.details.trim()
+      };
+      const response = await api.post('/payments', payload);
+      addToast(`Payment of RM${response.data.amount.toFixed(2)} submitted successfully! ID: ${response.data.id}`, 'success');
+    }
     resetForm();
+    await loadPayments();
   } catch (error) {
     triggerFormShake();
-    addToast('API Connection Error. Transaction suspended.', 'danger');
+    const errMsg = error.response?.data?.message || 'API Connection Error. Transaction suspended.';
+    addToast(errMsg, 'danger');
   } finally {
     isSubmitting.value = false;
   }
@@ -377,4 +416,8 @@ const addToast = (text, type = 'success') => {
     toasts.value = toasts.value.filter(t => t.id !== id);
   }, 4000);
 };
+
+onMounted(() => {
+  loadPayments();
+});
 </script>

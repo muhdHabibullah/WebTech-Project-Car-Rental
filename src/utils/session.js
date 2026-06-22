@@ -30,7 +30,6 @@ export const loginSim = async (email, password, role) => {
     localStorage.setItem('auth_token', user.token);
     return user;
   } catch (err) {
-    // If backend is unreachable, fall back to mock login for development
     console.error('[LOGIN] Failed:', {
       hasResponse: !!err.response,
       status: err.response?.status,
@@ -39,9 +38,7 @@ export const loginSim = async (email, password, role) => {
     });
     
     if (!err.response) {
-      console.warn('⚠️  Backend unreachable — using mock login');
-      console.warn('Make sure the PHP backend is running at:', api.defaults.baseURL);
-      return mockLogin(email, password, role);
+      throw new Error('Connection failed: Slim backend server is unreachable. Please verify it is running and database is active.');
     }
     const message = err.response?.data?.message || 'Login failed';
     throw new Error(message);
@@ -78,9 +75,7 @@ export const signupSim = async (name, email, password, role) => {
     });
     
     if (!err.response) {
-      console.warn('⚠️  Backend unreachable — using mock signup');
-      console.warn('Make sure the PHP backend is running at:', api.defaults.baseURL);
-      return mockLogin(email, password, role);
+      throw new Error('Connection failed: Slim backend server is unreachable. Please verify it is running and database is active.');
     }
     const message = err.response?.data?.message || 'Registration failed';
     throw new Error(message);
@@ -94,24 +89,4 @@ export const logoutSim = () => {
   currentUser.value = null;
   localStorage.removeItem('user_session');
   localStorage.removeItem('auth_token');
-};
-
-/**
- * Fallback mock login when the PHP backend is not running.
- * Allows the Vue frontend to function independently during development.
- */
-const mockLogin = async (email, password, role) => {
-  await new Promise(resolve => setTimeout(resolve, 800));
-
-  const user = {
-    email: email,
-    name: role === 'admin' ? 'Administrator Account' : 'Customer Account',
-    role: role,
-    token: 'mock_jwt_token_xyz_123'
-  };
-
-  currentUser.value = user;
-  localStorage.setItem('user_session', JSON.stringify(user));
-  localStorage.setItem('auth_token', user.token);
-  return user;
 };

@@ -74,7 +74,7 @@ class PaymentController {
             $date = date('Y-m-d');
 
             $stmt = $this->db->prepare("INSERT INTO payments (id, booking_id, amount, method, status, date, details) 
-                                        VALUES (:id, :booking_id, :amount, :method, 'paid', :date, :details)");
+                                        VALUES (:id, :booking_id, :amount, :method, 'pending', :date, :details)");
             
             $stmt->execute([
                 ':id' => $payId,
@@ -100,28 +100,83 @@ class PaymentController {
     public function updateStatus(Request $request, Response $response, array $args): Response {
         $id = $args['id'];
         $data = json_decode($request->getBody()->getContents(), true);
-        $status = $data['status'] ?? ''; // 'paid' | 'pending' | 'flagged'
-
-        if (!in_array($status, ['paid', 'pending', 'flagged'])) {
-            return $this->jsonResponse($response, ["message" => "Invalid payment status"], 400);
-        }
+        $user = $request->getAttribute('user');
+        
+        $status = $data['status'] ?? '';
+        $method = trim($data['method'] ?? '');
+        $details = trim($data['details'] ?? '');
 
         try {
-            $stmt = $this->db->prepare("UPDATE payments SET status = :status WHERE id = :id");
-            $stmt->execute([':status' => $status, ':id' => $id]);
+            // Fetch existing payment
+            $checkStmt = $this->db->prepare("SELECT p.*, b.customer_id FROM payments p JOIN bookings b ON p.booking_id = b.id WHERE p.id = :id");
+            $checkStmt->execute([':id' => $id]);
+            $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($stmt->rowCount() === 0) {
-                return $this->jsonResponse($response, ["message" => "Payment not found or status unchanged"], 404);
+            if (!$existing) {
+                return $this->jsonResponse($response, ["message" => "Payment not found"], 404);
             }
+
+            // Customer can only update their own pending payments (to submit method/details)
+            if ($user->role === 'customer') {
+                if (intval($existing['customer_id']) !== intval($user->customerId)) {
+                    return $this->jsonResponse($response, ["message" => "Forbidden: Unauthorized access"], 403);
+                }
+                // Customers can only update method and details on pending payments
+                if ($existing['status'] !== 'pending') {
+                    return $this->jsonResponse($response, ["message" => "Cannot modify a non-pending payment"], 400);
+                }
+            } else {
+                // Admin can only change status of pending payments
+                if (!empty($status) && $existing['status'] !== 'pending') {
+                    return $this->jsonResponse($response, ["message" => "Only pending payments can be approved or flagged."], 400);
+                }
+            }
+
+            // Build dynamic update
+            $fields = [];
+            $binds = [':id' => $id];
+
+            if (!empty($method)) {
+                $fields[] = "method = :method";
+                $binds[':method'] = $method;
+            }
+            if (!empty($details)) {
+                $fields[] = "details = :details";
+                $binds[':details'] = $details;
+            }
+            if (!empty($status) && in_array($status, ['paid', 'pending', 'flagged'])) {
+                $fields[] = "status = :status";
+                $binds[':status'] = $status;
+            }
+
+            if (empty($fields)) {
+                return $this->jsonResponse($response, ["message" => "Nothing to update"], 400);
+            }
+
+            $this->db->beginTransaction();
+
+            $query = "UPDATE payments SET " . implode(", ", $fields) . " WHERE id = :id";
+            $stmt = $this->db->prepare($query);
+            $stmt->execute($binds);
+
+            // Synchronise: If payment is paid, confirm the booking automatically
+            if (!empty($status) && $status === 'paid') {
+                $syncStmt = $this->db->prepare("UPDATE bookings SET status = 'confirmed' WHERE id = :booking_id AND status = 'pending'");
+                $syncStmt->execute([':booking_id' => $existing['booking_id']]);
+            }
+
+            $this->db->commit();
 
             return $this->jsonResponse($response, [
                 "status" => "success", 
-                "message" => "Payment status updated to " . $status,
-                "paymentId" => $id,
-                "paymentStatus" => $status
+                "message" => "Payment updated successfully",
+                "paymentId" => $id
             ]);
 
         } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             return $this->jsonResponse($response, ["message" => "Operation failed: " . $e->getMessage()], 500);
         }
     }

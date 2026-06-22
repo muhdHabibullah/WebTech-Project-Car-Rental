@@ -4,12 +4,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Customer Management</h1>
-        <p class="page-subtitle">Manage registered customers</p>
-      </div>
-      <div>
-        <button @click="toggleAddForm" class="btn btn-primary">
-          {{ showAddForm ? 'Cancel Add' : 'Add Customer' }}
-        </button>
+        <p class="page-subtitle">View registered customers</p>
       </div>
     </div>
 
@@ -46,28 +41,6 @@
       />
     </div>
 
-    <!-- Add Form -->
-    <div v-if="showAddForm" class="card" style="margin-bottom: 1.5rem;">
-      <h3 class="card-title">Add New Customer</h3>
-      <form @submit.prevent="handleAddSubmit">
-        <div class="form-group">
-          <label class="form-label">Full Name</label>
-          <input type="text" v-model="addForm.name" class="form-control" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email Address</label>
-          <input type="email" v-model="addForm.email" class="form-control" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Phone Number</label>
-          <input type="text" v-model="addForm.phone" class="form-control" />
-        </div>
-        <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Saving...' : 'Save Customer' }}
-        </button>
-      </form>
-    </div>
-
     <!-- Data Table -->
     <div class="table-container">
       <table class="data-table">
@@ -78,74 +51,25 @@
             <th>Phone</th>
             <th>Join Date</th>
             <th>Total Bookings</th>
-            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="filteredCustomers.length === 0">
-            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
               No customers match your search.
             </td>
           </tr>
-          <template v-for="c in filteredCustomers" :key="c.id">
-            <tr>
-              <td style="font-weight: 600;">{{ c.name }}</td>
-              <td>{{ c.email }}</td>
-              <td>{{ c.phone || 'N/A' }}</td>
-              <td>{{ c.joinDate }}</td>
-              <td>
-                <span class="badge badge-success">{{ c.totalBookings }}</span>
-              </td>
-              <td>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button @click="startEdit(c)" class="btn btn-sm btn-outline">Edit</button>
-                  <button @click="confirmDelete(c)" class="btn btn-sm btn-danger">Delete</button>
-                </div>
-              </td>
-            </tr>
-            <!-- Inline Edit Form -->
-            <tr v-if="editingId === c.id">
-              <td colspan="6" style="background: #f8fafc; padding: 1.5rem;">
-                <h4 style="margin-bottom: 1rem; font-size: 1rem;">Edit Customer</h4>
-                <form @submit.prevent="handleEditSubmit" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-                  <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
-                    <label class="form-label">Name</label>
-                    <input type="text" v-model="editForm.name" class="form-control" required />
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
-                    <label class="form-label">Email</label>
-                    <input type="email" v-model="editForm.email" class="form-control" required />
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
-                    <label class="form-label">Phone</label>
-                    <input type="text" v-model="editForm.phone" class="form-control" />
-                  </div>
-                  <div style="display: flex; gap: 0.5rem;">
-                    <button type="submit" class="btn btn-primary" :disabled="isSubmitting">Save</button>
-                    <button type="button" @click="cancelEdit" class="btn btn-outline">Cancel</button>
-                  </div>
-                </form>
-              </td>
-            </tr>
-          </template>
+          <tr v-for="c in filteredCustomers" :key="c.id">
+            <td style="font-weight: 600;">{{ c.name }}</td>
+            <td>{{ c.email }}</td>
+            <td>{{ c.phone || 'N/A' }}</td>
+            <td>{{ c.joinDate }}</td>
+            <td>
+              <span class="badge badge-success">{{ c.totalBookings }}</span>
+            </td>
+          </tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- Confirm Delete Modal -->
-    <div v-if="customerToDelete" class="modal-overlay" @click.self="customerToDelete = null">
-      <div class="modal-content" style="max-width: 450px;">
-        <h3 class="card-title" style="color: var(--status-danger);">Confirm Deletion</h3>
-        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
-          Are you sure you want to remove <strong>{{ customerToDelete.name }}</strong>? This action cannot be undone.
-        </p>
-        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-          <button @click="customerToDelete = null" class="btn btn-outline" :disabled="isSubmitting">Cancel</button>
-          <button @click="handleDelete" class="btn btn-danger" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Deleting...' : 'Delete Customer' }}
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- Toast Notification -->
@@ -158,23 +82,13 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import api from '@/utils/axios';
-import { currentUser } from '@/utils/session.js';
 
 const customers = ref([]);
 const searchQuery = ref('');
 const toasts = ref([]);
-const isSubmitting = ref(false);
 const isLoading = ref(true);
-
-const showAddForm = ref(false);
-const addForm = reactive({ name: '', email: '', phone: '' });
-
-const editingId = ref(null);
-const editForm = reactive({ name: '', email: '', phone: '' });
-
-const customerToDelete = ref(null);
 
 // Fetch customers from API
 const fetchCustomers = async () => {
@@ -213,80 +127,6 @@ const addToast = (text, type = 'success') => {
   setTimeout(() => {
     toasts.value = toasts.value.filter(t => t.id !== id);
   }, 4000);
-};
-
-const toggleAddForm = () => {
-  showAddForm.value = !showAddForm.value;
-  if (showAddForm.value) {
-    addForm.name = '';
-    addForm.email = '';
-    addForm.phone = '';
-  }
-};
-
-const handleAddSubmit = async () => {
-  isSubmitting.value = true;
-  try {
-    const res = await api.post('/admin/customers', { ...addForm });
-    customers.value.push(res.data);
-    addToast('Customer added', 'success');
-    showAddForm.value = false;
-  } catch (error) {
-    console.error('Error adding customer:', error);
-    addToast('Failed to add customer', 'danger');
-  } finally {
-    isSubmitting.value = false;
-  }
-};
-
-const startEdit = (c) => {
-  editingId.value = c.id;
-  editForm.name = c.name;
-  editForm.email = c.email;
-  editForm.phone = c.phone;
-};
-
-const cancelEdit = () => {
-  editingId.value = null;
-};
-
-const handleEditSubmit = async () => {
-  isSubmitting.value = true;
-  try {
-    await api.put(`/admin/customers/${editingId.value}`, { ...editForm });
-    const customer = customers.value.find(c => c.id === editingId.value);
-    if (customer) {
-      customer.name = editForm.name;
-      customer.email = editForm.email;
-      customer.phone = editForm.phone;
-    }
-    addToast('Customer updated', 'success');
-    editingId.value = null;
-  } catch (error) {
-    console.error('Error updating customer:', error);
-    addToast('Failed to update customer', 'danger');
-  } finally {
-    isSubmitting.value = false;
-  }
-};
-
-const confirmDelete = (c) => {
-  customerToDelete.value = c;
-};
-
-const handleDelete = async () => {
-  isSubmitting.value = true;
-  try {
-    await api.delete(`/admin/customers/${customerToDelete.value.id}`);
-    customers.value = customers.value.filter(c => c.id !== customerToDelete.value.id);
-    addToast('Customer removed', 'danger');
-    customerToDelete.value = null;
-  } catch (error) {
-    console.error('Error deleting customer:', error);
-    addToast('Failed to delete customer', 'danger');
-  } finally {
-    isSubmitting.value = false;
-  }
 };
 
 onMounted(() => {

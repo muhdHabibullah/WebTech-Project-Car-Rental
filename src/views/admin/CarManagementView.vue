@@ -356,26 +356,42 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import {
-  cars,
-  totalCarsCount,
-  availableCarsCount,
-  totalBookingsCount,
-  averageCarPrice,
-  addCar,
-  updateCar,
-  deleteCar,
-  toggleCarAvailability
-} from '../../utils/mockData';
+import { ref, reactive, computed, onMounted } from 'vue';
+import api from '../../utils/axios';
 
 // Search & Filters
 const searchQuery = ref('');
 const filterCategory = ref('all');
 const filterStatus = ref('all');
 
+// Data lists
+const carsList = ref([]);
+const bookingsList = ref([]);
+
+const totalCarsCount = computed(() => carsList.value.length);
+const availableCarsCount = computed(() => carsList.value.filter(c => c.available).length);
+const totalBookingsCount = computed(() => bookingsList.value.length);
+const averageCarPrice = computed(() => carsList.value.length ? (carsList.value.reduce((tot, c) => tot + c.pricePerDay, 0) / carsList.value.length) : 0);
+
+const loadData = async () => {
+  try {
+    const [resCars, resBookings] = await Promise.all([
+      api.get('/cars'),
+      api.get('/bookings')
+    ]);
+    carsList.value = resCars.data || [];
+    bookingsList.value = resBookings.data || [];
+  } catch (err) {
+    console.error('Failed to load data:', err);
+  }
+};
+
+onMounted(() => {
+  loadData();
+});
+
 const filteredCars = computed(() => {
-  let result = [...cars.value];
+  let result = [...carsList.value];
 
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
@@ -524,12 +540,13 @@ const handleSubmitCar = async () => {
 
   try {
     if (isEditing.value) {
-      await updateCar(editingCarId.value, payload);
+      await api.put(`/admin/cars/${editingCarId.value}`, payload);
       showToast('Vehicle updated successfully!', 'success');
     } else {
-      await addCar(payload);
+      await api.post('/admin/cars', payload);
       showToast('New vehicle added to fleet!', 'success');
     }
+    await loadData();
     closeFormModal();
   } catch (err) {
     console.error('Car form submit error:', err);
@@ -553,8 +570,9 @@ const handleDelete = async () => {
   if (!deleteTarget.value) return;
   isDeleting.value = true;
   try {
-    await deleteCar(deleteTarget.value.id);
+    await api.delete(`/admin/cars/${deleteTarget.value.id}`);
     showToast(`${deleteTarget.value.brand} ${deleteTarget.value.name} removed from fleet.`, 'success');
+    await loadData();
     showDeleteModal.value = false;
     deleteTarget.value = null;
   } catch (err) {
@@ -567,8 +585,10 @@ const handleDelete = async () => {
 // ─── Toggle Availability ───
 const toggleAvailability = async (car) => {
   try {
-    await toggleCarAvailability(car.id);
-    const newStatus = car.available ? 'available' : 'unavailable';
+    await api.put(`/admin/cars/${car.id}/toggle`);
+    await loadData();
+    const updated = carsList.value.find(c => c.id === car.id);
+    const newStatus = updated?.available ? 'available' : 'unavailable';
     showToast(`${car.brand} ${car.name} is now ${newStatus}.`, 'success');
   } catch (err) {
     showToast('Failed to toggle availability.', 'danger');
